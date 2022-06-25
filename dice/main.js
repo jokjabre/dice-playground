@@ -25,15 +25,15 @@ function dice_initialize(container) {
     var params = $t.get_url_params();
 
     if (params.chromakey) {
-        options.desk_color = 0x00ff00;
+        options.colors.desk = 0x00ff00;
         $t.id('control_panel').style.display = 'none';
     }
     if (params.shadows == 0) {
         $t.dice.use_shadows = false;
     }
     if (params.color == 'white') {
-        options.dice_color = '#808080';
-        options.label_color = '#202020';
+        options.colors.dice_body = '#808080';
+        options.colors.dice_label = '#202020';
     }
 
     var box = new $t.dice.dice_box(canvas, { w: 500, h: 300 });

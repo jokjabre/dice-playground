@@ -3,7 +3,7 @@ const world = {
     initiate: function() {
 
         //world.gravity.set(0, 0, -9.8 * 800);
-        this.instance.gravity.set(physics.gravity.x, physics.gravity.y, physics.gravity.z);
+        this.instance.gravity.set(physics.world_gravity.x, physics.world_gravity.y, physics.world_gravity.z);
 
         this.instance.broadphase = new CANNON.NaiveBroadphase();
         this.instance.solver.iterations = 200;
@@ -48,16 +48,16 @@ const world = {
             this.barrier_bottom_body    = new CANNON.RigidBody(0, new CANNON.Plane(), this.barrier_bottom_material);
 
             this.barrier_left_body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
-            this.barrier_left_body.position.set(0, options.scene_height * 0.93, 0);
+            this.barrier_left_body.position.set(0, playingField.dimensions.scene_height * 0.93, 0);
 
             this.barrier_right_body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-            this.barrier_right_body.position.set(0, -options.scene_height * 0.93, 0);
+            this.barrier_right_body.position.set(0, -playingField.dimensions.scene_height * 0.93, 0);
 
             this.barrier_top_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.PI / 2);
-            this.barrier_top_body.position.set(options.scene_width * 0.93, 0, 0);
+            this.barrier_top_body.position.set(playingField.dimensions.scene_width * 0.93, 0, 0);
 
             this.barrier_bottom_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
-            this.barrier_bottom_body.position.set(-options.scene_width * 0.93, 0, 0);
+            this.barrier_bottom_body.position.set(-playingField.dimensions.scene_width * 0.93, 0, 0);
 
         }
     },

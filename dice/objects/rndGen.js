@@ -24,4 +24,16 @@ const rndGen = {
 
     return getTrueRandom(this) ?? Math.random();
   },
+
+  
+  make_random_vector: function(vector) {
+    var random_angle = this.rnd() * Math.PI / 5 - Math.PI / 5 / 2;
+    var vec = {
+        x: vector.x * Math.cos(random_angle) - vector.y * Math.sin(random_angle),
+        y: vector.x * Math.sin(random_angle) + vector.y * Math.cos(random_angle)
+    };
+    if (vec.x == 0) vec.x = 0.01;
+    if (vec.y == 0) vec.y = 0.01;
+    return vec;
+  }
 };
