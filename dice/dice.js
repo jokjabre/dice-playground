@@ -21,10 +21,14 @@
 
         this.reinit(container, dimentions);
 
-        physics.setWorldOptions(this.world);
+        this.world.gravity.set(physics.gravity.x, physics.gravity.y, physics.gravity.z);
+        this.world.broadphase = new CANNON.NaiveBroadphase();
+        this.world.solver.iterations = 20;
         world.initiate();
 
+
         this.scene.add(options.threeJS.ambientLight);
+        scene.addAmbientLight();
 
         this.dice_body_material = new CANNON.Material();
         var desk_body_material = new CANNON.Material();
@@ -58,6 +62,8 @@
         barrier.position.set(-this.w * 0.93, 0, 0);
         this.world.add(barrier);
 
+//this.world = world.instance;
+
         this.last_time = 0;
         this.running = false;
 
@@ -68,13 +74,14 @@
         this.cw = container.clientWidth / 2;
         this.ch = container.clientHeight / 2;
         if (dimentions) {
-            this.w = dimentions.w;
-            this.h = dimentions.h;
+            options.scene_width = this.w = dimentions.w;
+            options.scene_height = this.h = dimentions.h;
         }
         else {
-            this.w = this.cw;
-            this.h = this.ch;
+            options.scene_width = this.w = this.cw;
+            options.scene_height = this.h = this.ch;
         }
+
         this.aspect = Math.min(this.cw / this.w, this.ch / this.h);
         options.scale = Math.sqrt(this.w * this.w + this.h * this.h) / 13;
 
@@ -313,26 +320,6 @@
         this.running = (new Date()).getTime();
         this.last_time = 0;
         this.__animate(this.running);
-    }
-
-    this.dice_box.prototype.__selector_animate = function(threadid) {
-        var time = (new Date()).getTime();
-        var time_diff = (time - this.last_time) / 1000;
-        if (time_diff > 3) time_diff = options.frame_rate;
-        var angle_change = 0.3 * time_diff * Math.PI * Math.min(24000 + threadid - time, 6000) / 6000;
-        if (angle_change < 0) this.running = false;
-        for (var i in this.dices) {
-            this.dices[i].rotation.y += angle_change;
-            this.dices[i].rotation.x += angle_change / 4;
-            this.dices[i].rotation.z += angle_change / 10;
-        }
-        this.last_time = time;
-        this.renderer.render(this.scene, this.camera);
-        if (this.running == threadid) {
-            (function(t, tid) {
-                requestAnimationFrame(function() { t.__selector_animate(tid); });
-            })(this, threadid);
-        }
     }
 
     this.dice_box.prototype.search_dice_by_mouse = function(ev) {
