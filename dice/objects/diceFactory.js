@@ -166,24 +166,38 @@ const dice_geometry = {
 }
 
 const diceFactory = {
+  dices: [],
 
-  createDice: function (dice) {
+  createDice: function (that, pos, velocity, angle, axis) {
     var d6_geometry = dice_geometry.create_d6_geometry(playingField.dimensions.scale * 0.9);
-    if (!dice.dice_material)
-      dice.dice_material = new THREE.MeshFaceMaterial(
-        create_dice_materials(
+    if (!that.die_material)
+      that.die_material = new THREE.MeshFaceMaterial(
+        create_die_materials(
           [" ", "0", "1", "2", "3", "4", "5", "6"],
           playingField.dimensions.scale / 2,
           1.0
         )
       );
-    return new THREE.Mesh(d6_geometry, dice.dice_material);
+      var dice = new THREE.Mesh(d6_geometry, that.die_material);
+      dice.castShadow = true;
+        dice.body = new CANNON.RigidBody(physics.die_mass,
+                dice.geometry.cannon_shape, world.objects.dice_body_material);
+        dice.body.position.set(pos.x, pos.y, pos.z);
+        dice.body.quaternion.setFromAxisAngle(new CANNON.Vec3(axis.x, axis.y, axis.z), axis.a * Math.PI * 2);
+        dice.body.angularVelocity.set(angle.x, angle.y, angle.z);
+        dice.body.velocity.set(velocity.x, velocity.y, velocity.z);
+        dice.body.linearDamping = 0.1;
+        dice.body.angularDamping = 0.1;
+        scene.add(dice);
+        this.dices.push(dice);
+        world.add(dice.body);
+    return dice;
 
     function calc_texture_size(approx) {
       return Math.pow(2, Math.floor(Math.log(approx) / Math.log(2)));
     };
 
-    function create_dice_materials(face_labels, size, margin) {
+    function create_die_materials(face_labels, size, margin) {
       
       function create_text_texture(text, color, back_color) {
         if (text == undefined) return null;

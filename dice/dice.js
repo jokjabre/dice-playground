@@ -8,84 +8,21 @@
     this.dice_box = function(container, dimentions) {
 
         this.dices = [];
-        this.world = new CANNON.World();
-
-        this.renderer = window.WebGLRenderingContext
-            ? new THREE.WebGLRenderer({ antialias: true })
-            : new THREE.CanvasRenderer({ antialias: true });
-        container.appendChild(this.renderer.domElement);
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFShadowMap;
-        this.renderer.setClearColor(0xffffff, 1);
+        container.appendChild(scene.renderer.domElement);
         
-        scene.add(scene.light);
-        scene.add(scene.camera);
         this.reinit(container, dimentions);
 
-        this.world.gravity.set(physics.world_gravity.x, physics.world_gravity.y, physics.world_gravity.z);
-        this.world.broadphase = new CANNON.NaiveBroadphase();
-        this.world.solver.iterations = 20;
-        //world.initiate();
-
-
-        scene.add(scene.ambientLight);
-
-        this.dice_body_material = new CANNON.Material();
-        var desk_body_material = new CANNON.Material();
-        var barrier_body_material = new CANNON.Material({color: 0xaa88bb});
-        this.world.addContactMaterial(new CANNON.ContactMaterial(
-                    desk_body_material, this.dice_body_material, 0.01, 0.5));
-        this.world.addContactMaterial(new CANNON.ContactMaterial(
-                    barrier_body_material, this.dice_body_material, 0, 1.0));
-        this.world.addContactMaterial(new CANNON.ContactMaterial(
-                    this.dice_body_material, this.dice_body_material, 0, 0.5));
-
-        this.world.add(new CANNON.RigidBody(0, new CANNON.Plane(), desk_body_material));
-        var barrier;
-        barrier = new CANNON.RigidBody(0, new CANNON.Plane(), barrier_body_material);
-        barrier.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
-        barrier.position.set(0, playingField.dimensions.scene_height * 0.93, 0);
-        this.world.add(barrier);
-
-        barrier = new CANNON.RigidBody(0, new CANNON.Plane(), barrier_body_material);
-        barrier.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-        barrier.position.set(0, -playingField.dimensions.scene_height* 0.93, 0);
-        this.world.add(barrier);
-
-        barrier = new CANNON.RigidBody(0, new CANNON.Plane(), barrier_body_material);
-        barrier.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.PI / 2);
-        barrier.position.set(playingField.dimensions.scene_width * 0.93, 0, 0);
-        this.world.add(barrier);
-
-        barrier = new CANNON.RigidBody(0, new CANNON.Plane(), barrier_body_material);
-        barrier.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
-        barrier.position.set(-playingField.dimensions.scene_width * 0.93, 0, 0);
-        this.world.add(barrier);
-
-
-//this.world = world.instance;
+        world.initiate();
 
         this.last_time = 0;
         this.running = false;
         
-        this.renderer.render(scene.instance, scene.camera);
+        scene.renderer.render(scene.instance, scene.camera);
     }
 
     this.dice_box.prototype.reinit = function(container, dimentions) {
         playingField.dimensions.re_init(container);
-
-        this.renderer.setSize(playingField.dimensions.scene_width * 2, playingField.dimensions.scene_height * 2);
-
-        scene.recreate_camera();
-        scene.recreate_light();
-
-        if (this.desk) scene.remove(this.desk);
-        this.desk = new THREE.Mesh(new THREE.PlaneGeometry(playingField.dimensions.scene_width * 2, playingField.dimensions.scene_height * 2, 1, 1), 
-                new THREE.MeshPhongMaterial({ color: options.colors.desk }));
-        this.desk.receiveShadow = options.use_shadows;
-        scene.add(this.desk);
-
-        this.renderer.render(scene.instance, scene.camera);
+        scene.rerender();
     }
 
 
@@ -115,27 +52,27 @@
     }
 
     this.dice_box.prototype.create_dice = function(pos, velocity, angle, axis) {
-        var dice = diceFactory.createDice(that);
-        dice.castShadow = true;
-        dice.body = new CANNON.RigidBody(physics.die_mass,
-                dice.geometry.cannon_shape, this.dice_body_material);
-        dice.body.position.set(pos.x, pos.y, pos.z);
-        dice.body.quaternion.setFromAxisAngle(new CANNON.Vec3(axis.x, axis.y, axis.z), axis.a * Math.PI * 2);
-        dice.body.angularVelocity.set(angle.x, angle.y, angle.z);
-        dice.body.velocity.set(velocity.x, velocity.y, velocity.z);
-        dice.body.linearDamping = 0.1;
-        dice.body.angularDamping = 0.1;
-        scene.instance.add(dice);
-        this.dices.push(dice);
-        this.world.add(dice.body);
+        var dice = diceFactory.createDice(that, pos, velocity, angle, axis);
+        // dice.castShadow = true;
+        // dice.body = new CANNON.RigidBody(physics.die_mass,
+        //         dice.geometry.cannon_shape, this.dice_body_material);
+        // dice.body.position.set(pos.x, pos.y, pos.z);
+        // dice.body.quaternion.setFromAxisAngle(new CANNON.Vec3(axis.x, axis.y, axis.z), axis.a * Math.PI * 2);
+        // dice.body.angularVelocity.set(angle.x, angle.y, angle.z);
+        // dice.body.velocity.set(velocity.x, velocity.y, velocity.z);
+        // dice.body.linearDamping = 0.1;
+        // dice.body.angularDamping = 0.1;
+        // scene.add(dice);
+        // this.dices.push(dice);
+        // world.add(dice.body);
     }
 
     this.dice_box.prototype.check_if_throw_finished = function() {
         var res = true;
         var e = 6;
         if (this.iteration < 10 / options.frame_rate) {
-            for (var i = 0; i < this.dices.length; ++i) {
-                var dice = this.dices[i];
+            for (var i = 0; i < diceFactory.dices.length; ++i) {
+                var dice = diceFactory.dices[i];
                 if (dice.dice_stopped === true) continue;
                 var a = dice.body.angularVelocity, v = dice.body.velocity;
                 if (Math.abs(a.x) < e && Math.abs(a.y) < e && Math.abs(a.z) < e &&
@@ -186,9 +123,9 @@
     this.dice_box.prototype.emulate_throw = function() {
         while (!this.check_if_throw_finished()) {
             ++this.iteration;
-            this.world.step(options.frame_rate);
+            world.instance.step(options.frame_rate);
         }
-        return get_dice_values(this.dices);
+        return get_dice_values(diceFactory.dices);
     }
 
     this.dice_box.prototype.__animate = function(threadid) {
@@ -198,13 +135,13 @@
         ++this.iteration;
         if (options.use_adaptive_timestep) {
             while (time_diff > options.frame_rate * 1.1) {
-                this.world.step(options.frame_rate);
+                world.instance.step(options.frame_rate);
                 time_diff -= options.frame_rate;
             }
-            this.world.step(time_diff);
+            world.instance.step(time_diff);
         }
         else {
-            this.world.step(options.frame_rate);
+            world.instance.step(options.frame_rate);
         }
         for (var i in scene.instance.children) {
             var interact = scene.instance.children[i];
@@ -213,11 +150,11 @@
                 interact.quaternion.copy(interact.body.quaternion);
             }
         }
-        this.renderer.render(scene.instance, scene.camera);
+        scene.renderer.render(scene.instance, scene.camera);
         this.last_time = this.last_time ? time : (new Date()).getTime();
         if (this.running == threadid && this.check_if_throw_finished()) {
             this.running = false;
-            if (this.callback) this.callback.call(this, get_dice_values(this.dices));
+            if (this.callback) this.callback.call(this, get_dice_values(diceFactory.dices));
         }
         if (this.running == threadid) {
             (function(t, tid, uat) {
@@ -233,14 +170,14 @@
     this.dice_box.prototype.clear = function() {
         this.running = false;
         var dice;
-        while (dice = this.dices.pop()) {
+        while (dice = diceFactory.dices.pop()) {
             scene.instance.remove(dice); 
-            if (dice.body) this.world.remove(dice.body);
+            if (dice.body) world.remove(dice.body);
         }
         if (this.pane) scene.instance.remove(this.pane);
-        this.renderer.render(scene.instance, scene.camera);
-        var box = this;
-        setTimeout(function() { box.renderer.render(scene.instance, scene.camera); }, 100);
+        scene.renderer.render(scene.instance, scene.camera);
+
+        setTimeout(function() { scene.renderer.render(scene.instance, scene.camera); }, 100);
     }
 
     this.dice_box.prototype.prepare_dices_for_roll = function(vectors) {
@@ -275,7 +212,7 @@
             var res = this.emulate_throw();
             this.prepare_dices_for_roll(vectors);
             for (var i in res)
-                shift_dice_faces(this.dices[i], values[i], res[i]);
+                shift_dice_faces(diceFactory.dices[i], values[i], res[i]);
         }
         this.callback = callback;
         this.running = (new Date()).getTime();
@@ -288,7 +225,7 @@
         var intersects = (new THREE.Raycaster(scene.camera.position, 
                     (new THREE.Vector3((m.x - this.cw) / playingField.dimensions.aspect,
                                        1 - (m.y - playingField.dimensions.scene_height) / playingField.dimensions.aspect, playingField.dimensions.scene_width/ 9))
-                    .sub(scene.camera.position).normalize())).intersectObjects(this.dices);
+                    .sub(scene.camera.position).normalize())).intersectObjects(diceFactory.dices);
         if (intersects.length) return intersects[0].object;
     }
 

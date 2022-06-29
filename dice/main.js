@@ -7,10 +7,7 @@ function dice_initialize(container) {
     canvas.style.height = window.innerHeight - 1 + 'px';
     var set = $t.id('set');
 
-    on_set_change();
 
-    function on_set_change(ev) { set.style.width = set.value.length + 3 + 'ex'; }
-    $t.bind(set, 'keyup', on_set_change);
     $t.bind(set, 'mousedown', function(ev) { ev.stopPropagation(); });
     $t.bind(set, 'mouseup', function(ev) { ev.stopPropagation(); });
     $t.bind(set, 'focus', function(ev) { $t.set(container, { class: '' }); });
@@ -19,7 +16,6 @@ function dice_initialize(container) {
     $t.bind($t.id('clear'), ['mouseup', 'touchend'], function(ev) {
         ev.stopPropagation();
         set.value = '0';
-        on_set_change();
     });
 
     var params = $t.get_url_params();
@@ -76,21 +72,18 @@ function dice_initialize(container) {
         box.start_throw(before_roll, after_roll);
     }
 
-    // $t.bind(container, ['mouseup', 'touchend'], function(ev) {
-    //     ev.stopPropagation();
-    //     // if (selector_div.style.display == 'none') {
-    //     //     if (!box.rolling) show_selector();
-    //     //     box.rolling = false;
-    //     //     return;
-    //     // }
-    //     var name = box.search_dice_by_mouse(ev);
-    //     if (name != undefined) {
-    //         var notation = $t.dice.parse_notation(set.value);
-    //         notation.set.push(name);
-    //         set.value = $t.dice.stringify_notation(notation);
-    //         on_set_change();
-    //     }
-    // });
+    $t.bind(container, ['mouseup', 'touchend'], function(ev) {
+        ev.stopPropagation();
+        // if (selector_div.style.display == 'none') {
+        //     if (!box.rolling) show_selector();
+        //     box.rolling = false;
+        //     return;
+        // }
+        var name = box.search_dice_by_mouse(ev);
+        if (name != undefined) {
+
+        }
+    });
 
     // if (params.notation) {
     //     set.value = params.notation;
