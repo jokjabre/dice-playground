@@ -40,8 +40,8 @@
 }
 
 #set {
-    text-align: center;
-    font-size: 26pt;
+
+    font-size: 20pt;
     border: none;
     color: rgba(0, 0, 0, 0.8);
     background-color: rgba(255, 255, 255, 0);

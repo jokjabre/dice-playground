@@ -27,6 +27,8 @@ export class DiceBox {
     }
 
     check_if_throw_finished () {
+        if(options.continuous_rolling) return false;
+        
         var res = true;
         var e = 6;
         if (this.iteration < 10 / options.frame_rate) {
@@ -255,12 +257,34 @@ export class DiceBox {
         $t.bind(window, ['devicemotion'], function(ev) {
 
             var text = 
-`acc: ${ev.acceleration.x}, ${ev.acceleration.y}, ${ev.acceleration.y}; 
-accG: ${ev.accelerationIncludingGravity.x}, ${ev.accelerationIncludingGravity.y}, ${ev.accelerationIncludingGravity.z}; 
-rot: ${ev.rotationRate.alpha}, ${ev.rotationRate.beta}, ${ev.rotationRate.gamma}; 
+`acc: 
+    ${ev.acceleration.x}, 
+    ${ev.acceleration.y}, 
+    ${ev.acceleration.y}; 
+accG: 
+    ${ev.accelerationIncludingGravity.x}, 
+    ${ev.accelerationIncludingGravity.y}, 
+    ${ev.accelerationIncludingGravity.z}; 
+rot: 
+    ${ev.rotationRate.alpha}, 
+    ${ev.rotationRate.beta}, 
+    ${ev.rotationRate.gamma}; 
 int: ${ev.interval}`
             //alert("motion: " + ev);
             $t.id('set').textContent =  text;
+
+            diceFactory.dices.forEach(die => {
+                die.body.angularVelocity.set(
+                    die.body.angularVelocity.x + ev.rotationRate.alpha, 
+                    die.body.angularVelocity.y + ev.rotationRate.beta, 
+                    die.body.angularVelocity.z + ev.rotationRate.gamma / 100);
+                die.dice_stopped = 0;
+            });
+
+            // diceFactory.dices[i].body.quaternion.setFromAxisAngle(new CANNON.Vec3(vector.axis.x, vector.axis.y, vector.axis.z), vector.axis.a * Math.PI * 2);
+            //     diceFactory.dices[i].body.angularVelocity.set(vector.angle.x *2, vector.angle.y *2, vector.angle.z *2);
+            //     diceFactory.dices[i].body.velocity.set(vector.velocity.x *2, vector.velocity.y *2, vector.velocity.z *2);
+          
         });
 
     }
