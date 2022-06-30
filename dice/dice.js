@@ -250,9 +250,12 @@ export class DiceBox {
 
         $t.bind(window, ['deviceorientation'], function(ev) {
             //alert("orientation: " + ev);
+            // $t.id('set').textContent = JSON.stringify(ev);
         });
         $t.bind(window, ['devicemotion'], function(ev) {
-            alert("motion: " + ev);
+            //alert("motion: " + ev);
+            $t.id('set').value =  JSON.stringify(ev.acceleration) + JSON.stringify(ev.accelerationIncludingGravity) + 
+                                    JSON.stringify(ev.rotationRate) + JSON.stringify(ev.interval);
         });
 
     }
