@@ -8,12 +8,12 @@
 // });
 
 export default class OBJ_TYPE {
-    static DIE              = new OBJ_TYPE(DIE           , 'die');
-    static DESK             = new OBJ_TYPE(DESK          , 'desk');
-    static BARRIER_LEFT     = new OBJ_TYPE(BARRIER_LEFT  , 'barrier_left'); 
-    static BARRIER_RIGHT    = new OBJ_TYPE(BARRIER_RIGHT , 'barrier_right'); 
-    static BARRIER_TOP      = new OBJ_TYPE(BARRIER_TOP   , 'barrier_top');
-    static BARRIER_BOTTOM   = new OBJ_TYPE(BARRIER_BOTTOM, 'barrier_bottom');
+    static DIE              = new OBJ_TYPE("DIE", 'die');
+    static DESK             = new OBJ_TYPE("DESK", 'desk');
+    static BARRIER_LEFT     = new OBJ_TYPE("BARRIER_LEFT", 'barrier_left'); 
+    static BARRIER_RIGHT    = new OBJ_TYPE("BARRIER_RIGHT", 'barrier_right'); 
+    static BARRIER_TOP      = new OBJ_TYPE("BARRIER_TOP", 'barrier_top');
+    static BARRIER_BOTTOM   = new OBJ_TYPE("BARRIER_BOTTOM", 'barrier_bottom');
 
     constructor(key, value) {
         this.key = key;

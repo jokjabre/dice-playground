@@ -1,6 +1,8 @@
 "use strict";
+import { DiceBox } from './dice.js';
+import { $t } from '../teal.js';
 
-function dice_initialize(container) {
+export function dice_initialize(container) {
 
     var canvas = $t.id('canvas');
     canvas.style.width = window.innerWidth - 1 + 'px';
@@ -32,7 +34,7 @@ function dice_initialize(container) {
         options.colors.dice_label = '#202020';
     }
 
-    var box = new $t.dice.dice_box(canvas, { w: 500, h: 300 });
+    var box = new DiceBox(canvas, { w: 500, h: 300 });
 
     $t.bind(window, 'resize', function() {
         canvas.style.width = window.innerWidth - 1 + 'px';
@@ -53,10 +55,6 @@ function dice_initialize(container) {
         // callback([2, 2, 2, 2]); // for 4d6 where all dice values are 2.
         callback();
     }
-
-    // function notation_getter() {
-    //     return $t.dice.parse_notation(set.value);
-    // }
 
     function after_roll(result) {
         if (params.chromakey || params.noresult) return;

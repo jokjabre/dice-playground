@@ -5,10 +5,45 @@
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 <meta name="keywords" content="DnD, dangeon and dragons, roleplay, dice, roller, 3D, RPG, wargame"/>
 <meta name="description" content="Online 3D dice roller"/>
-<title>teal 3d dice roller</title>
+<title>Dice playground</title>
 
 <style type="text/css">@import "../main.css";</style>
 <style type="text/css">@import "dice.css";</style>
+
+
+
+<script src="../libs/three.min.js"></script>
+<script src="../libs/cannon.min.js"></script>
+
+
+<script type="module" src="../teal.js"></script>
+<script type="module" src="./helpers/enums.js"></script>
+<script type="module" src="./objects/geometry.js"></script>
+<script type="text/javascript" src="./helpers/diff.js"></script>
+
+<script type="text/javascript" src="./objects/rndGen.js"></script>
+
+<script type="text/javascript" src="./objects/options.js"></script>
+<script type="text/javascript" src="./objects/playingField.js"></script>
+<script type="text/javascript" src="./objects/scene.js"></script>
+<script type="text/javascript" src="./objects/physics.js"></script>
+<script type="text/javascript" src="./objects/world.js"></script>
+
+<script type="module" src="./objects/diceFactory.js"></script>
+
+<script type="module" src="dice.js"></script>
+<script type="module" src="main.js"></script>
+<script type="module">
+    import { dice_initialize } from './main.js';
+
+    dice_initialize(document.body);
+</script>
+
+
+
+
+
+
 
 </head>
 
@@ -26,28 +61,6 @@
     </div>
     <div id="canvas"></div>
 
-    <script src="../libs/three.min.js"></script>
-    <script src="../libs/cannon.min.js"></script>
 
-
-    <script type="text/javascript" src="../teal.js"></script>
-    <script type="text/javascript" src="./helpers/enums.js"></script>
-    <script type="text/javascript" src="./helpers/diff.js"></script>
-
-    <script type="text/javascript" src="./objects/rndGen.js"></script>
-    
-    <script type="text/javascript" src="./objects/options.js"></script>
-    <script type="text/javascript" src="./objects/playingField.js"></script>
-    <script type="text/javascript" src="./objects/scene.js"></script>
-    <script type="text/javascript" src="./objects/physics.js"></script>
-    <script type="text/javascript" src="./objects/world.js"></script>
-
-    <script type="text/javascript" src="./objects/diceFactory.js"></script>
-    
-    <script type="text/javascript" src="dice.js"></script>
-    <script type="text/javascript" src="main.js"></script>
-    <script type="text/javascript" defer="defer">
-        dice_initialize(document.body);
-    </script>
 </body>
 </html>

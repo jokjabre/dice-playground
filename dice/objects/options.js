@@ -1,4 +1,6 @@
 const options = {
+
+    continuous_rolling: true,
     frame_rate: 1 / 60,
     diceCount: 6,
     use_adaptive_timestep: false,
