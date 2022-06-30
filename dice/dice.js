@@ -253,9 +253,14 @@ export class DiceBox {
             // $t.id('set').textContent = JSON.stringify(ev);
         });
         $t.bind(window, ['devicemotion'], function(ev) {
+
+            var text = 
+`acc: ${ev.acceleration.x}, ${ev.acceleration.y}, ${ev.acceleration.y}; 
+accG: ${ev.accelerationIncludingGravity.x}, ${ev.accelerationIncludingGravity.y}, ${ev.accelerationIncludingGravity.z}; 
+rot: ${ev.rotationRate.alpha}, ${ev.rotationRate.beta}, ${ev.rotationRate.gamma}; 
+int: ${ev.interval}`
             //alert("motion: " + ev);
-            $t.id('set').value =  JSON.stringify(ev.acceleration) + JSON.stringify(ev.accelerationIncludingGravity) + 
-                                    JSON.stringify(ev.rotationRate) + JSON.stringify(ev.interval);
+            $t.id('set').textContent =  text;
         });
 
     }
