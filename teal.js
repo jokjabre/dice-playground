@@ -219,6 +219,48 @@ when = function(promises) {
     }
     return deferred.promise();
 }
+
+writeToMiddleDiv = function(obj, isOrientation) {
+    if(!$t.writeDebugInfo) return;
+
+    if (isOrientation) {
+        $t.id("middleDiv").textContent = 
+ `
+ ev:
+ x: ${obj.ev?.alpha?.toFixed(0)}, 
+ y: ${obj.ev?.beta?.toFixed(0)}, 
+ z: ${obj.ev?.gamma?.toFixed(0)}, 
+ 
+ oldVector:
+ x: ${obj.oldVector.x.toFixed(0)}, 
+ y: ${obj.oldVector.y.toFixed(0)}, 
+ z: ${obj.oldVector.z.toFixed(0)}, 
+ 
+ newVector:
+ x: ${obj.newVector.x.toFixed(0)}, 
+ y: ${obj.newVector.y.toFixed(0)}, 
+ z: ${obj.newVector.z.toFixed(0)}, 
+ 
+ `
+    }
+    else
+    {
+        $t.id("middleDiv").textContent = 
+`
+acc:
+x: ${obj.ev.acceleration.x},
+y: ${obj.ev.acceleration.y},
+z: ${obj.ev.acceleration.z},
+
+
+accG: 
+x: ${obj.ev.accelerationIncludingGravity.x},
+y: ${obj.ev.accelerationIncludingGravity.y},
+z: ${obj.ev.accelerationIncludingGravity.z}
+`
+    }
+
+}
 }
 
 export const $t = new Teal();

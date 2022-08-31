@@ -1,6 +1,7 @@
 "use strict";
 import { DiceBox } from './dice.js';
 import { $t } from '../teal.js';
+import { scene } from './objects/scene.js';
 
 export function dice_initialize(container) {
 
@@ -10,8 +11,8 @@ export function dice_initialize(container) {
     var set = $t.id('set');
 
 
-    $t.bind(set, 'mousedown', function(ev) { ev.stopPropagation(); });
-    $t.bind(set, 'mouseup', function(ev) { ev.stopPropagation(); });
+    // $t.bind(set, 'mousedown', function(ev) { ev.stopPropagation(); });
+    // $t.bind(set, 'mouseup', function(ev) { ev.stopPropagation(); });
     $t.bind(set, 'focus', function(ev) { $t.set(container, { class: '' }); });
     $t.bind(set, 'blur', function(ev) { $t.set(container, { class: 'noselect' }); });
 
@@ -81,6 +82,23 @@ export function dice_initialize(container) {
         if (name != undefined) {
 
         }
+    });
+
+    
+    $t.bind($t.id("inX"), "change", function(ev,) {
+        scene.camera.position.x = Number.parseFloat(ev.srcElement.value);
+        scene.camera.updateProjectionMatrix();
+        //scene.rerender();
+    });
+    $t.bind($t.id("inY"), "change", function(ev) {
+        scene.camera.position.y = Number.parseFloat(ev.srcElement.value);
+        scene.camera.updateProjectionMatrix();
+        //scene.rerender();
+    });
+    $t.bind($t.id("inZ"), "change", function(ev) {
+        scene.camera.position.z = Number.parseFloat(ev.srcElement.value);
+        scene.camera.updateProjectionMatrix();
+        //scene.rerender();
     });
 
     // if (params.notation) {

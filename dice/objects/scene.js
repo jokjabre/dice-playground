@@ -1,4 +1,8 @@
-const scene = {
+import { $t } from "../../teal.js";
+import { SettingsRenderer } from "./settingsRenderer.js";
+import { world } from "./world.js";
+
+export const scene = {
   instance: new THREE.Scene(),
 
   ambientLight: new THREE.AmbientLight(options.colors.ambient_light),
@@ -116,8 +120,32 @@ const scene = {
     this.recreate_light();
     this.recreate_desk();
 
-    this.recreate_barriers();
+    // this.recreate_barriers();
 
     this.renderer.render(this.instance, this.camera);
+
+    if(!$t.writeDebugInfo) return;
+    let ren = new SettingsRenderer();
+
+    ["position", "rotation"].forEach(prop => {
+      ren.addVector(scene.camera[prop], `camera_${prop}`, function(vector) {
+        scene.camera[prop].set(vector.x, vector.y, vector.z);
+        scene.camera.updateProjectionMatrix();
+      })
+    });
+
+    ren.addVector(scene.camera.quaternion, "camera_quaternion", function(vector) {
+      vector.divideScalar(100);
+      scene.camera.quaternion.set(vector.x, vector.y, vector.z, scene.camera.quaternion.w);
+      scene.camera.updateProjectionMatrix();
+    });
+
+    ["far", "fov"].forEach(prop => {
+      ren.add(scene.camera[prop], `camera_${prop}`, function(val) {
+        scene.camera[prop] = val;
+        scene.camera.updateProjectionMatrix();
+      })
+    })
+
   },
 };

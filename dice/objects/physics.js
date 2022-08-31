@@ -1,4 +1,4 @@
-const physics = {
+export const physics = {
 
     world_gravity: {
         x: 0,
@@ -16,6 +16,7 @@ const physics = {
         barrier_right: 0,
         barrier_top: 0,
         barrier_bottom: 0,
+        screen: 0
     },
 
     //restitution between a die and other materials
@@ -26,6 +27,7 @@ const physics = {
         barrier_right : 1.0,
         barrier_top : 1.0,
         barrier_bottom : 1.0,
+        screen: 0.5
     }
 
 }

@@ -1,5 +1,8 @@
 import { $t } from "../../teal.js";
 import { Geometry } from "./geometry.js";
+import { physics } from "./physics.js";
+import { world } from "./world.js";
+import { scene } from "./scene.js";
 
 
 export const diceFactory = {
