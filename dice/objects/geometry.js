@@ -1,6 +1,29 @@
+import { physics } from "./physics.js";
 export class Geometry {
 
     static lastKnownVectors = [];
+
+    static amplifyVector(vector, aplification) {
+      let max = Math.max(Math.abs(vector.x), Math.abs(vector.y), Math.abs(vector.z));
+      // if(vector.x === max) vector.x *= aplification;
+      // if(vector.y === max) vector.y *= aplification;
+      // if(vector.z === max) vector.z *= aplification;
+      vector.divideScalar(max);
+      vector.multiplyScalar(aplification);
+    }
+
+    static calculate_quadrant(num, step) {
+      let breakpoint = 0;
+      let quadrant = 0;
+      while(breakpoint < 360) {
+        if(num >= breakpoint && num <= breakpoint + step) {
+           console.log("Quadrant: " + quadrant)
+           return quadrant%2 ? -1 : 1; 
+        }
+        breakpoint += step;
+        quadrant++;
+      }
+    }
 
     static generate_vectors(vector, boost) {
        Geometry.lastKnownVectors = [];

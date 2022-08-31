@@ -3,6 +3,9 @@
 import { Geometry } from "./objects/geometry.js";
 import { $t } from "../teal.js";
 import { diceFactory } from "./objects/diceFactory.js";
+import { physics } from "./objects/physics.js";
+import { world } from "./objects/world.js";
+import { scene } from "./objects/scene.js";
 
 export class DiceBox {
 
@@ -228,7 +231,7 @@ export class DiceBox {
     bind_mouse (container, before_roll, after_roll) {
         var box = this;
         $t.bind(container, ['mousedown', 'touchstart'], function(ev) {
-            ev.preventDefault();
+            //ev.preventDefault();
             box.mouse_time = (new Date()).getTime();
             box.mouse_start = $t.get_mouse_coords(ev);
         });
@@ -251,33 +254,53 @@ export class DiceBox {
         });
 
         $t.bind(window, ['deviceorientation'], function(ev) {
-            //alert("orientation: " + ev);
-            // $t.id('set').textContent = JSON.stringify(ev);
+            if(!options.continuous_rolling) return;
+
+            let 
+            oldVector = new THREE.Vector3(Geometry.calculate_quadrant(ev.alpha, 45) * (ev.alpha%45), ev.beta, ev.gamma),
+            newVector = new THREE.Vector3(0, -9.8, 0),
+            prop = physics.world_gravity;
+            
+            newVector.add(oldVector.negate());
+
+            //Geometry.amplifyVector(newVector, 9.8 * 100);
+            world.instance.gravity.set(newVector.x, newVector.y, newVector.z);
+            $t.id("middleDiv").textContent = 
+`
+ev:
+x: ${ev?.alpha?.toFixed(0)}, 
+y: ${ev?.beta?.toFixed(0)}, 
+z: ${ev?.gamma?.toFixed(0)}, 
+
+oldVector:
+x: ${oldVector.x.toFixed(0)}, 
+y: ${oldVector.y.toFixed(0)}, 
+z: ${oldVector.z.toFixed(0)}, 
+
+newVector:
+x: ${newVector.x.toFixed(0)}, 
+y: ${newVector.y.toFixed(0)}, 
+z: ${newVector.z.toFixed(0)}, 
+
+
+
+`
+            // diceFactory.dices.forEach(die => {
+            //     die.body.angularVelocity.set(
+            //         die.body.angularVelocity.x + ev.alpha / 50, 
+            //         die.body.angularVelocity.y + ev.beta / 50, 
+            //        0 );// die.body.angularVelocity.z + ev.gamma/ 50);
+            //     die.dice_stopped = 0;
+            // });
         });
         $t.bind(window, ['devicemotion'], function(ev) {
-
-            var text = 
-`acc: 
-    ${ev.acceleration.x}, 
-    ${ev.acceleration.y}, 
-    ${ev.acceleration.y}; 
-accG: 
-    ${ev.accelerationIncludingGravity.x}, 
-    ${ev.accelerationIncludingGravity.y}, 
-    ${ev.accelerationIncludingGravity.z}; 
-rot: 
-    ${ev.rotationRate.alpha}, 
-    ${ev.rotationRate.beta}, 
-    ${ev.rotationRate.gamma}; 
-int: ${ev.interval}`
-            //alert("motion: " + ev);
-            $t.id('set').textContent =  text;
+            if(!options.continuous_rolling) return;
 
             diceFactory.dices.forEach(die => {
-                die.body.angularVelocity.set(
-                    die.body.angularVelocity.x + ev.rotationRate.alpha, 
-                    die.body.angularVelocity.y + ev.rotationRate.beta, 
-                    die.body.angularVelocity.z + ev.rotationRate.gamma / 100);
+                // die.body.velocity.set(
+                //     die.body.velocity.x + ev.accelerationIncludingGravity.x * 5, 
+                //     die.body.velocity.y + ev.accelerationIncludingGravity.y * 5, 
+                //     (Math.abs(die.body.velocity.z) + Math.abs(ev.accelerationIncludingGravity.z) ) * (ev.accelerationIncludingGravity.z > 0 ? -1 : 1));
                 die.dice_stopped = 0;
             });
 

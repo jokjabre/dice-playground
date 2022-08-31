@@ -1,4 +1,6 @@
-const world = {
+import { physics } from "./physics.js";
+
+export const world = {
     instance: new CANNON.World(),
 
     add: function(item) {
@@ -20,6 +22,7 @@ const world = {
 
         this.instance.addContactMaterial(this.objects.die_contact);          
         this.instance.addContactMaterial(this.objects.desk_contact);     
+        this.instance.addContactMaterial(this.objects.screen_contact);
 
         this.instance.addContactMaterial(this.objects.barrier_left_contact);  
         this.instance.addContactMaterial(this.objects.barrier_right_contact); 
@@ -27,6 +30,7 @@ const world = {
         this.instance.addContactMaterial(this.objects.barrier_bottom_contact);
 
         this.add(this.objects.desk_body);          
+        this.add(this.objects.screen_body);          
         this.add(this.objects.barrier_left_body);  
         this.add(this.objects.barrier_right_body); 
         this.add(this.objects.barrier_top_body);   
@@ -49,7 +53,7 @@ const world = {
 
         initiate: function() {
             var objs = this;
-            var obj_arr = ['die', 'desk', 'barrier_left', 'barrier_right', 'barrier_top', 'barrier_bottom'];
+            var obj_arr = ['die', 'desk', 'screen', 'barrier_left', 'barrier_right', 'barrier_top', 'barrier_bottom'];
             
             var create_material = function(obj) {
                 objs[`${obj}_material`] = new CANNON.Material();
@@ -90,6 +94,8 @@ const world = {
             this.barrier_bottom_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
             this.barrier_bottom_body.position.set(-playingField.dimensions.scene_width * 0.93, 0, 0);
 
+            this.screen_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI);
+            this.screen_body.position.set(playingField.dimensions.scene_width, playingField.dimensions.scene_height, 700);
         }
     },
 
