@@ -124,6 +124,7 @@ export const scene = {
 
     this.renderer.render(this.instance, this.camera);
 
+    if(!$t.writeDebugInfo) return;
     let ren = new SettingsRenderer();
 
     ["position", "rotation"].forEach(prop => {

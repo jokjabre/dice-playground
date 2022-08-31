@@ -258,33 +258,16 @@ export class DiceBox {
 
             let 
             oldVector = new THREE.Vector3(Geometry.calculate_quadrant(ev.alpha, 45) * (ev.alpha%45), ev.beta, ev.gamma),
-            newVector = new THREE.Vector3(0, -9.8, 0),
-            prop = physics.world_gravity;
+            newVector = new THREE.Vector3(0, 0, -9.8 * 100)
+            // prop = physics.world_gravity;
             
-            newVector.add(oldVector.negate());
+            //newVector.add(oldVector.negate());
 
-            //Geometry.amplifyVector(newVector, 9.8 * 100);
-            world.instance.gravity.set(newVector.x, newVector.y, newVector.z);
-            $t.id("middleDiv").textContent = 
-`
-ev:
-x: ${ev?.alpha?.toFixed(0)}, 
-y: ${ev?.beta?.toFixed(0)}, 
-z: ${ev?.gamma?.toFixed(0)}, 
-
-oldVector:
-x: ${oldVector.x.toFixed(0)}, 
-y: ${oldVector.y.toFixed(0)}, 
-z: ${oldVector.z.toFixed(0)}, 
-
-newVector:
-x: ${newVector.x.toFixed(0)}, 
-y: ${newVector.y.toFixed(0)}, 
-z: ${newVector.z.toFixed(0)}, 
-
-
-
-`
+            // //Geometry.amplifyVector(newVector, 9.8 * 100);
+            // world.instance.gravity.set(newVector.x, newVector.y, newVector.z);
+            //world.instance.gravity.set(0,0,0);
+            //$t.writeToMiddleDiv({ev, oldVector, newVector}, true);
+            
             // diceFactory.dices.forEach(die => {
             //     die.body.angularVelocity.set(
             //         die.body.angularVelocity.x + ev.alpha / 50, 
@@ -293,14 +276,20 @@ z: ${newVector.z.toFixed(0)},
             //     die.dice_stopped = 0;
             // });
         });
+
         $t.bind(window, ['devicemotion'], function(ev) {
             if(!options.continuous_rolling) return;
 
+            $t.writeToMiddleDiv({ev}, false);
+
             diceFactory.dices.forEach(die => {
-                // die.body.velocity.set(
-                //     die.body.velocity.x + ev.accelerationIncludingGravity.x * 5, 
-                //     die.body.velocity.y + ev.accelerationIncludingGravity.y * 5, 
-                //     (Math.abs(die.body.velocity.z) + Math.abs(ev.accelerationIncludingGravity.z) ) * (ev.accelerationIncludingGravity.z > 0 ? -1 : 1));
+                let die_velocity = {
+                    x: Math.abs(ev.acceleration.x) > 0.5 ? die.body.velocity.x - (ev.acceleration.x * 150) : die.body.velocity.x, 
+                    y: Math.abs(ev.acceleration.y) > 0.5 ? die.body.velocity.y - (ev.acceleration.y * 150) : die.body.velocity.y, 
+                    z: ev.acceleration.z < 0.9 ? die.body.velocity.z - (ev.acceleration.z * 150) : die.body.velocity.z,  //(Math.abs(die.body.velocity.z) + Math.abs(ev.accelerationIncludingGravity.z) ) * (ev.accelerationIncludingGravity.z > 0 ? -1 : 1)
+                };
+
+                die.body.velocity.set(die_velocity.x, die_velocity.y, die_velocity.z)
                 die.dice_stopped = 0;
             });
 

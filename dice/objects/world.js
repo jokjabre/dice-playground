@@ -82,20 +82,20 @@ export const world = {
 
             });
 
-            this.barrier_left_body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
-            this.barrier_left_body.position.set(0, playingField.dimensions.scene_height * 0.93, 0);
+            this.barrier_top_body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2);
+            this.barrier_top_body.position.set(0, playingField.dimensions.scene_height * 0.93, 0);
 
-            this.barrier_right_body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
-            this.barrier_right_body.position.set(0, -playingField.dimensions.scene_height * 0.93, 0);
+            this.barrier_bottom_body.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+            this.barrier_bottom_body.position.set(0, -playingField.dimensions.scene_height * 0.93, 0);
 
-            this.barrier_top_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.PI / 2);
-            this.barrier_top_body.position.set(playingField.dimensions.scene_width * 0.93, 0, 0);
+            this.barrier_right_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), -Math.PI / 2);
+            this.barrier_right_body.position.set(playingField.dimensions.scene_width * 0.93, 0, 0);
 
-            this.barrier_bottom_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
-            this.barrier_bottom_body.position.set(-playingField.dimensions.scene_width * 0.93, 0, 0);
+            this.barrier_left_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI / 2);
+            this.barrier_left_body.position.set(-playingField.dimensions.scene_width * 0.93, 0, 0);
 
             this.screen_body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), Math.PI);
-            this.screen_body.position.set(playingField.dimensions.scene_width, playingField.dimensions.scene_height, 700);
+            this.screen_body.position.set(playingField.dimensions.scene_width, playingField.dimensions.scene_height, 2700);
         }
     },
 
