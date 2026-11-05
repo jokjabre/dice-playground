@@ -9,12 +9,15 @@ import { scene } from "./objects/scene.js";
 import { options } from "../src/config/options.js";
 import { dimensions, playingField } from "../src/config/dimensions.js";
 import { rndGen } from "../src/utils/rndGen.js";
+import { EventBus } from "../src/core/EventBus.js";
+import { GameLoop, StandardRollStrategy, ContinuousMotionStrategy } from "../src/core/GameLoop.js";
 
 export class DiceBox {
 
    constructor(container) {
 
         this.dices = [];
+        this.eventBus = new EventBus();
         container.appendChild(scene.renderer.domElement);
         
         this.reinit(container);
@@ -24,7 +27,44 @@ export class DiceBox {
         this.last_time = 0;
         this.running = false;
         
+        // Initialize modular GameLoop
+        this.gameLoop = new GameLoop({
+            stepPhysics: (dt) => {
+                world.instance.step(dt);
+            },
+            syncMeshes: () => {
+                this.sync_meshes();
+            },
+            render: () => {
+                scene.renderer.render(scene.instance, scene.camera);
+            },
+            getDices: () => diceFactory.dices,
+            getDiceValues: () => this.get_dice_values(diceFactory.dices),
+            eventBus: this.eventBus,
+            options: options
+        });
+
+        // Forward loop settle event to DiceBox callback
+        this.eventBus.on('roll:settle', ({ values }) => {
+            this.running = false;
+            if (this.callback) {
+                const cb = this.callback;
+                this.callback = null;
+                cb.call(this, values);
+            }
+        });
+
         scene.renderer.render(scene.instance, scene.camera);
+    }
+
+    sync_meshes() {
+        for (var i in scene.instance.children) {
+            var interact = scene.instance.children[i];
+            if (interact.body != undefined) {
+                interact.position.copy(interact.body.position);
+                interact.quaternion.copy(interact.body.quaternion);
+            }
+        }
     }
 
     reinit(container) {
@@ -95,49 +135,18 @@ export class DiceBox {
         return this.get_dice_values(diceFactory.dices);
     }
 
+    /**
+     * Legacy animation method maintained for backwards compatibility.
+     * New code routes through this.gameLoop.
+     */
     __animate (threadid) {
-        var time = (new Date()).getTime();
-        var time_diff = (time - this.last_time) / 1000;
-        if (time_diff > 3) time_diff = options.frame_rate;
-        ++this.iteration;
-        if (options.use_adaptive_timestep) {
-            while (time_diff > options.frame_rate * 1.1) {
-                world.instance.step(options.frame_rate);
-                time_diff -= options.frame_rate;
-            }
-            world.instance.step(time_diff);
-        }
-        else {
-            world.instance.step(options.frame_rate);
-        }
-
-        for (var i in scene.instance.children) {
-            var interact = scene.instance.children[i];
-            if (interact.body != undefined) {
-                interact.position.copy(interact.body.position);
-                interact.quaternion.copy(interact.body.quaternion);
-            }
-        }
-        scene.renderer.render(scene.instance, scene.camera);
-        this.last_time = this.last_time ? time : (new Date()).getTime();
-        if (this.running == threadid && this.check_if_throw_finished()) {
-            this.running = false;
-            if (this.callback) this.callback.call(this, this.get_dice_values(diceFactory.dices));
-        }
-        if (this.running == threadid) {
-            (function(t, tid, uat) {
-                if (!uat && time_diff < options.frame_rate) {
-                    setTimeout(function() { requestAnimationFrame(function() { t.__animate(tid); }); },
-                        (options.frame_rate - time_diff) * 1000);
-                }
-                else requestAnimationFrame(function() { t.__animate(tid); });
-            })(this, threadid, options.use_adaptive_timestep);
-        }
+        this.gameLoop.start();
     }
 
     clear () {
         if(options.continuous_rolling) return;
 
+        this.gameLoop.stop();
         this.running = false;
         var dice;
         while (dice = diceFactory.dices.pop()) {
@@ -199,7 +208,22 @@ export class DiceBox {
         this.callback = callback;
         this.running = (new Date()).getTime();
         this.last_time = 0;
-        this.__animate(this.running);
+
+        // Choose strategy based on continuous_rolling option
+        if (options.continuous_rolling) {
+            this.gameLoop.start(new ContinuousMotionStrategy());
+        } else {
+            this.gameLoop.start(new StandardRollStrategy({
+                onSettle: (resultValues) => {
+                    this.running = false;
+                    if (this.callback) {
+                        const cb = this.callback;
+                        this.callback = null;
+                        cb.call(this, resultValues);
+                    }
+                }
+            }));
+        }
     }
 
     search_dice_by_mouse (ev) {
