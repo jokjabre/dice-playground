@@ -15,6 +15,9 @@ import { MeshBodySync } from "../src/rendering/MeshBodySync.js";
 import { FaceReader } from "../src/determinism/FaceReader.js";
 import { FaceShifter } from "../src/determinism/FaceShifter.js";
 import { OutcomePredictor } from "../src/determinism/OutcomePredictor.js";
+import { InputManager } from "../src/input/InputManager.js";
+import { RaycastPicker } from "../src/input/RaycastPicker.js";
+import { MotionController } from "../src/input/MotionController.js";
 
 export class DiceBox {
 
@@ -212,12 +215,14 @@ export class DiceBox {
     }
 
     search_dice_by_mouse (ev) {
+        if (!this.raycastPicker) {
+            this.raycastPicker = new RaycastPicker({
+                camera: scene.camera,
+                dimensions: playingField
+            });
+        }
         var m = $t.get_mouse_coords(ev);
-        var intersects = (new THREE.Raycaster(scene.camera.position, 
-                    (new THREE.Vector3((m.x - this.cw) / playingField.dimensions.aspect,
-                                       1 - (m.y - playingField.dimensions.scene_height) / playingField.dimensions.aspect, playingField.dimensions.scene_width/ 9))
-                    .sub(scene.camera.position).normalize())).intersectObjects(diceFactory.dices);
-        if (intersects.length) return intersects[0].object;
+        return this.raycastPicker.pick(m.x, m.y, diceFactory.dices);
     }
 
     throw_dices(box, vector, boost, dist, before_roll, after_roll) {
@@ -242,75 +247,45 @@ export class DiceBox {
 
     bind_mouse (container, before_roll, after_roll) {
         var box = this;
-        $t.bind(container, ['mousedown', 'touchstart'], function(ev) {
-            //ev.preventDefault();
-            box.mouse_time = (new Date()).getTime();
-            box.mouse_start = $t.get_mouse_coords(ev);
-        });
-        $t.bind(container, ['mouseup', 'touchend'], function(ev) {
-            if (box.rolling) {
-                //return;
 
+        if (this.inputManager) {
+            this.inputManager.destroy();
+        }
+
+        this.inputManager = new InputManager({
+            container: container,
+            dimensions: playingField,
+            options: options,
+            onThrow: (vectors, boost, dist) => {
+                if (options.diceCount == 0) return;
+                var uat = options.use_adaptive_timestep;
+                function roll(request_results) {
+                    box.clear();
+                    box.roll(vectors, request_results, function(result) {
+                        if (after_roll) after_roll.call(box, result);
+                        box.rolling = false;
+                        options.use_adaptive_timestep = uat;
+                    });
+                }
+                box.rolling = true;
+                if (before_roll) before_roll.call(box, vectors, roll);
+                else roll();
             }
-            if (box.mouse_start == undefined) return;
-            ev.stopPropagation();
-            var m = $t.get_mouse_coords(ev);
-            var vector = { x: m.x - box.mouse_start.x, y: -(m.y - box.mouse_start.y) };
-            box.mouse_start = undefined;
-            var dist = Math.sqrt(vector.x * vector.x + vector.y * vector.y);
-            if (dist < Math.sqrt(playingField.dimensions.scene_width* playingField.dimensions.scene_height* 0.01)) return;
-            var time_int = (new Date()).getTime() - box.mouse_time;
-            if (time_int > 2000) time_int = 2000;
-            var boost = Math.sqrt((2500 - time_int) / 2500) * dist * 2;
-                box.throw_dices(box, vector, boost, dist, before_roll, after_roll);
         });
 
-        $t.bind(window, ['deviceorientation'], function(ev) {
-            if(!options.continuous_rolling) return;
+        if (this.motionController) {
+            this.motionController.destroy();
+        }
 
-            let 
-            oldVector = new THREE.Vector3(Geometry.calculate_quadrant(ev.alpha, 45) * (ev.alpha%45), ev.beta, ev.gamma),
-            newVector = new THREE.Vector3(0, 0, -9.8 * 100)
-            // prop = physics.world_gravity;
-            
-            //newVector.add(oldVector.negate());
-
-            // //Geometry.amplifyVector(newVector, 9.8 * 100);
-            // world.instance.gravity.set(newVector.x, newVector.y, newVector.z);
-            //world.instance.gravity.set(0,0,0);
-            //$t.writeToMiddleDiv({ev, oldVector, newVector}, true);
-            
-            // diceFactory.dices.forEach(die => {
-            //     die.body.angularVelocity.set(
-            //         die.body.angularVelocity.x + ev.alpha / 50, 
-            //         die.body.angularVelocity.y + ev.beta / 50, 
-            //        0 );// die.body.angularVelocity.z + ev.gamma/ 50);
-            //     die.dice_stopped = 0;
-            // });
+        this.motionController = new MotionController({
+            physicsWorld: world,
+            getDices: () => diceFactory.dices,
+            eventBus: this.eventBus
         });
 
-        $t.bind(window, ['devicemotion'], function(ev) {
-            if(!options.continuous_rolling) return;
-
-            $t.writeToMiddleDiv({ev}, false);
-
-            diceFactory.dices.forEach(die => {
-                let die_velocity = {
-                    x: Math.abs(ev.acceleration.x) > 0.5 ? die.body.velocity.x - (ev.acceleration.x * 150) : die.body.velocity.x, 
-                    y: Math.abs(ev.acceleration.y) > 0.5 ? die.body.velocity.y - (ev.acceleration.y * 150) : die.body.velocity.y, 
-                    z: ev.acceleration.z < 0.9 ? die.body.velocity.z - (ev.acceleration.z * 150) : die.body.velocity.z,  //(Math.abs(die.body.velocity.z) + Math.abs(ev.accelerationIncludingGravity.z) ) * (ev.accelerationIncludingGravity.z > 0 ? -1 : 1)
-                };
-
-                die.body.velocity.set(die_velocity.x, die_velocity.y, die_velocity.z)
-                die.dice_stopped = 0;
-            });
-
-            // diceFactory.dices[i].body.quaternion.setFromAxisAngle(new CANNON.Vec3(vector.axis.x, vector.axis.y, vector.axis.z), vector.axis.a * Math.PI * 2);
-            //     diceFactory.dices[i].body.angularVelocity.set(vector.angle.x *2, vector.angle.y *2, vector.angle.z *2);
-            //     diceFactory.dices[i].body.velocity.set(vector.velocity.x *2, vector.velocity.y *2, vector.velocity.z *2);
-          
-        });
-
+        if (options.continuous_rolling) {
+            this.motionController.enable();
+        }
     }
 
 

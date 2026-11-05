@@ -4,6 +4,7 @@ import { $t } from '../teal.js';
 import { scene } from './objects/scene.js';
 import { options } from '../src/config/options.js';
 import { BannerResultPresenter } from '../src/presentation/ResultPresenter.js';
+import { ContinuousMotionStrategy, StandardRollStrategy } from '../src/core/GameLoop.js';
 
 export function dice_initialize(container) {
 
@@ -12,22 +13,25 @@ export function dice_initialize(container) {
     canvas.style.height = window.innerHeight - 1 + 'px';
     var set = $t.id('set');
 
+    if (set) {
+        $t.bind(set, 'focus', function(ev) { $t.set(container, { class: '' }); });
+        $t.bind(set, 'blur', function(ev) { $t.set(container, { class: 'noselect' }); });
+    }
 
-    // $t.bind(set, 'mousedown', function(ev) { ev.stopPropagation(); });
-    // $t.bind(set, 'mouseup', function(ev) { ev.stopPropagation(); });
-    $t.bind(set, 'focus', function(ev) { $t.set(container, { class: '' }); });
-    $t.bind(set, 'blur', function(ev) { $t.set(container, { class: 'noselect' }); });
-
-    $t.bind($t.id('clear'), ['mouseup', 'touchend'], function(ev) {
-        ev.stopPropagation();
-        set.value = '0';
-    });
+    var clearBtn = $t.id('clear');
+    if (clearBtn) {
+        $t.bind(clearBtn, ['mouseup', 'touchend'], function(ev) {
+            ev.stopPropagation();
+            if (set) set.value = '0';
+        });
+    }
 
     var params = $t.get_url_params();
 
     if (params.chromakey) {
         options.colors.desk = 0x00ff00;
-        $t.id('control_panel').style.display = 'none';
+        const cp = $t.id('control_panel');
+        if (cp) cp.style.display = 'none';
     }
     if (params.shadows == 0) {
         $t.dice.use_shadows = false;
@@ -46,18 +50,11 @@ export function dice_initialize(container) {
         box.reinit(canvas, { w: 500, h: 300 });
     });
 
-    // function show_selector() {
-    //     info_div.style.display = 'none';
-    //     selector_div.style.display = 'inline-block';
-    //     box.draw_selector();
-    // }
+    // Custom predetermined target values holder
+    let customTargetValues = null;
 
     function before_roll(vectors, callback) {
-
-        // do here rpc call or whatever to get your own result of throw.
-        // then callback with array of your result, example:
-        // callback([2, 2, 2, 2]); // for 4d6 where all dice values are 2.
-        callback();
+        callback(customTargetValues);
     }
 
     function after_roll(result) {
@@ -68,46 +65,97 @@ export function dice_initialize(container) {
     }
 
     box.bind_mouse(container, before_roll, after_roll);
-    $t.roll = function() {
+    $t.roll = function(targetValues = null) {
+        customTargetValues = targetValues;
         box.start_throw(before_roll, after_roll);
-    }
+    };
 
     $t.bind(container, ['mouseup', 'touchend'], function(ev) {
         ev.stopPropagation();
-        // if (selector_div.style.display == 'none') {
-        //     if (!box.rolling) show_selector();
-        //     box.rolling = false;
-        //     return;
-        // }
         var name = box.search_dice_by_mouse(ev);
         if (name != undefined) {
-
+            // Die tapped
         }
     });
 
-    
-    $t.bind($t.id("inX"), "change", function(ev,) {
-        scene.camera.position.x = Number.parseFloat(ev.srcElement.value);
-        scene.camera.updateProjectionMatrix();
-        //scene.rerender();
-    });
-    $t.bind($t.id("inY"), "change", function(ev) {
-        scene.camera.position.y = Number.parseFloat(ev.srcElement.value);
-        scene.camera.updateProjectionMatrix();
-        //scene.rerender();
-    });
-    $t.bind($t.id("inZ"), "change", function(ev) {
-        scene.camera.position.z = Number.parseFloat(ev.srcElement.value);
-        scene.camera.updateProjectionMatrix();
-        //scene.rerender();
+    // Setup interactive Multi-Mode UI controls
+    setupDemoControls(box, presenter);
+
+    // Initial roll
+    $t.roll();
+
+    return {
+        box,
+        presenter,
+        options,
+        roll: $t.roll
+    };
+}
+
+/**
+ * Attaches the multi-mode toolbar and controls for Task 8 demo.
+ */
+function setupDemoControls(box, presenter) {
+    const modeSelect = $t.id('mode-select');
+    const predeterminedControls = $t.id('predetermined-controls');
+    const predeterminedInputs = $t.id('predetermined-inputs');
+    const btnPredeterminedRoll = $t.id('btn-predetermined-roll');
+    const btnRoll = $t.id('btn-roll');
+    const btnClear = $t.id('btn-clear');
+    const continuousNotice = $t.id('continuous-notice');
+
+    if (!modeSelect) return;
+
+    function updateModeUI(mode) {
+        if (predeterminedControls) predeterminedControls.style.display = (mode === 'predetermined') ? 'flex' : 'none';
+        if (continuousNotice) continuousNotice.style.display = (mode === 'continuous') ? 'block' : 'none';
+
+        if (mode === 'continuous') {
+            options.continuous_rolling = true;
+            if (box.motionController) {
+                box.motionController.enable();
+            }
+            // Trigger roll to populate field if empty
+            if (box.dices.length === 0) {
+                $t.roll();
+            } else {
+                box.gameLoop.start(new ContinuousMotionStrategy());
+            }
+        } else {
+            options.continuous_rolling = false;
+            if (box.motionController) {
+                box.motionController.disable();
+            }
+        }
+    }
+
+    modeSelect.addEventListener('change', (e) => {
+        updateModeUI(e.target.value);
     });
 
-    // if (params.notation) {
-    //     set.value = params.notation;
-    // }
-    // if (params.roll) {
-        
-        $t.roll();
-    // }
+    if (btnRoll) {
+        btnRoll.addEventListener('click', (e) => {
+            e.stopPropagation();
+            $t.roll();
+        });
+    }
 
+    if (btnClear) {
+        btnClear.addEventListener('click', (e) => {
+            e.stopPropagation();
+            box.clear();
+            if (presenter) presenter.clear();
+        });
+    }
+
+    if (btnPredeterminedRoll) {
+        btnPredeterminedRoll.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const inputVal = predeterminedInputs ? predeterminedInputs.value.trim() : '6,6,6';
+            const parsed = inputVal.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n) && n >= 1 && n <= 6);
+            const targetValues = parsed.length > 0 ? parsed : [6, 6, 6];
+            options.diceCount = targetValues.length;
+            $t.roll(targetValues);
+        });
+    }
 }

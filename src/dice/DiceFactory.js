@@ -152,6 +152,25 @@ export class DiceFactory {
     }
 
     /**
+     * Spawns a set of dice matching vectors.
+     * @param {Array} vectors
+     * @returns {Array<DiceEntity>}
+     */
+    spawnDiceSet(vectors) {
+        this.clear();
+        const entities = [];
+        for (const v of vectors) {
+            entities.push(this.createDice({
+                pos: v.pos,
+                velocity: v.velocity,
+                angle: v.angle,
+                axis: v.axis
+            }));
+        }
+        return entities;
+    }
+
+    /**
      * Clears all active dice from world and scene.
      */
     clear() {
