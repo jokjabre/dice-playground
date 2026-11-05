@@ -1,4 +1,7 @@
 import { physics } from "./physics.js";
+import { options } from "../../src/config/options.js";
+import { dimensions, playingField } from "../../src/config/dimensions.js";
+import { rndGen } from "../../src/utils/rndGen.js";
 export class Geometry {
 
     static lastKnownVectors = [];

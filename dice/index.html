@@ -10,43 +10,14 @@
 <style type="text/css">@import "../main.css";</style>
 <style type="text/css">@import "dice.css";</style>
 
-
-
 <script src="../libs/three.min.js"></script>
 <script src="../libs/cannon.min.js"></script>
 
-
-<script type="module" src="../teal.js"></script>
-<script type="module" src="./helpers/enums.js"></script>
-<script type="module" src="./objects/geometry.js"></script>
-<script type="module" src="./objects/physics.js"></script>
-<script type="module" src="./objects/settingsRenderer.js"></script>
-
-
-<script type="text/javascript" src="./helpers/diff.js"></script>
-
-<script type="text/javascript" src="./objects/rndGen.js"></script>
-<script type="text/javascript" src="./objects/options.js"></script>
-<script type="text/javascript" src="./objects/playingField.js"></script>
-<script type="module" src="./objects/scene.js"></script>
-<script type="module" src="./objects/world.js"></script>
-
-<script type="module" src="./objects/diceFactory.js"></script>
-
-<script type="module" src="dice.js"></script>
-<script type="module" src="main.js"></script>
 <script type="module">
     import { dice_initialize } from './main.js';
 
     dice_initialize(document.body);
 </script>
-
-
-
-
-
-
-
 </head>
 
 <body style="margin: 0">
@@ -54,15 +25,12 @@
     <div id="selector_div" style="display: none;">
         <div class="center_field">
                 
-    </div>
-            <pre id="set" style="display: none;"></pre><br/>
+        </div>
+        <pre id="set" style="display: none;"></pre><br/>
     </div>
     <div id="canvas"></div>
-    <div id="settings" style="position: fixed; left:80vw; top:1vh;">
-
-    </div>
-<pre id="middleDiv"  style="position: fixed; top: 30vh; left: 40vw; font-size: xx-large;">
-</pre>
+    <div id="settings" style="position: fixed; left:80vw; top:1vh;"></div>
+    <pre id="middleDiv" style="position: fixed; top: 30vh; left: 40vw; font-size: xx-large;"></pre>
 
 </body>
 </html>

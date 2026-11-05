@@ -1,6 +1,8 @@
 import { $t } from "../../teal.js";
 import { SettingsRenderer } from "./settingsRenderer.js";
 import { world } from "./world.js";
+import { options } from "../../src/config/options.js";
+import { dimensions, playingField } from "../../src/config/dimensions.js";
 
 export const scene = {
   instance: new THREE.Scene(),

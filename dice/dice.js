@@ -6,6 +6,9 @@ import { diceFactory } from "./objects/diceFactory.js";
 import { physics } from "./objects/physics.js";
 import { world } from "./objects/world.js";
 import { scene } from "./objects/scene.js";
+import { options } from "../src/config/options.js";
+import { dimensions, playingField } from "../src/config/dimensions.js";
+import { rndGen } from "../src/utils/rndGen.js";
 
 export class DiceBox {
 
@@ -191,7 +194,7 @@ export class DiceBox {
             var res = this.emulate_throw();
             this.prepare_dices_for_roll(vectors);
             for (var i in res)
-                shift_dice_faces(diceFactory.dices[i], values[i], res[i]);
+                this.shift_dice_faces(diceFactory.dices[i], values[i], res[i]);
         }
         this.callback = callback;
         this.running = (new Date()).getTime();

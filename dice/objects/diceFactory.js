@@ -3,6 +3,8 @@ import { Geometry } from "./geometry.js";
 import { physics } from "./physics.js";
 import { world } from "./world.js";
 import { scene } from "./scene.js";
+import { options } from "../../src/config/options.js";
+import { dimensions, playingField } from "../../src/config/dimensions.js";
 
 
 export const diceFactory = {

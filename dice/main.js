@@ -2,6 +2,7 @@
 import { DiceBox } from './dice.js';
 import { $t } from '../teal.js';
 import { scene } from './objects/scene.js';
+import { options } from '../src/config/options.js';
 
 export function dice_initialize(container) {
 

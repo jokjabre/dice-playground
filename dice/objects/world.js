@@ -1,4 +1,5 @@
 import { physics } from "./physics.js";
+import { dimensions, playingField } from "../../src/config/dimensions.js";
 
 export const world = {
     instance: new CANNON.World(),
