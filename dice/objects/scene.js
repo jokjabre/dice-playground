@@ -1,153 +1,127 @@
 import { $t } from "../../teal.js";
 import { SettingsRenderer } from "./settingsRenderer.js";
-import { world } from "./world.js";
 import { options } from "../../src/config/options.js";
 import { dimensions, playingField } from "../../src/config/dimensions.js";
+import { RenderScene } from "../../src/rendering/RenderScene.js";
+import { CameraController } from "../../src/rendering/CameraController.js";
+import { LightingRig } from "../../src/rendering/LightingRig.js";
+import { MeshBodySync } from "../../src/rendering/MeshBodySync.js";
+
+/**
+ * Modular RenderScene wrapper.
+ * Backwards compatible with legacy scene references across dice.js, main.js, and diceFactory.js,
+ * powered internally by RenderScene, CameraController, LightingRig, and MeshBodySync.
+ */
+export const renderScene = new RenderScene({
+    options: options
+});
 
 export const scene = {
-  instance: new THREE.Scene(),
+    // Underlying THREE.Scene instance
+    get instance() {
+        return renderScene.instance;
+    },
 
-  ambientLight: new THREE.AmbientLight(options.colors.ambient_light),
-  camera: new THREE.PerspectiveCamera(20, 1, 1, 1000),
-  light: new THREE.SpotLight(options.colors.spotlight, 2.0),
-  desk: new THREE.Mesh(
-    new THREE.PlaneGeometry(),
-    new THREE.MeshPhongMaterial()
-  ),
-  barrier: new THREE.Mesh(
-    new THREE.PlaneGeometry(),
-    new THREE.MeshPhongMaterial()
-  ),
-  renderer: window.WebGLRenderingContext
-    ? new THREE.WebGLRenderer({ antialias: true })
-    : new THREE.CanvasRenderer({ antialias: true }),
+    // Underlying THREE.PerspectiveCamera instance
+    get camera() {
+        return renderScene.camera;
+    },
 
-  add: function (item) {
-    this.instance.add(item);
-  },
-  remove: function (item) {
-    this.instance.remove(item);
-  },
+    // Underlying renderer instance
+    get renderer() {
+        return renderScene.renderer;
+    },
 
-  recreate_ambient_light: function () {
-    this.remove(this.ambientLight);
+    // Lighting rig references
+    get ambientLight() {
+        return renderScene.lightingRig.ambientLight;
+    },
+    get light() {
+        return renderScene.lightingRig.spotLight;
+    },
 
-    this.ambientLight = new THREE.AmbientLight(options.colors.ambient_light);
+    // Desk mesh
+    get desk() {
+        return renderScene.desk;
+    },
 
-    this.add(this.ambientLight);
-  },
+    renderScene: renderScene,
 
-  recreate_camera: function () {
-    this.remove(this.camera);
+    add: function (item) {
+        renderScene.add(item);
+    },
 
-    let dimensions = playingField.dimensions;
-    this.camera.aspect = dimensions.scene_width / dimensions.scene_height;
-    this.camera.far = dimensions.wall_height * 1.3;
-    this.camera.position.z = dimensions.wall_height;
-    this.camera.updateProjectionMatrix();
+    remove: function (item) {
+        renderScene.remove(item);
+    },
 
-    this.add(this.camera);
-  },
+    recreate_ambient_light: function () {
+        // Handled via lightingRig
+    },
 
-  recreate_light: function () {
-    this.remove(this.light);
+    recreate_camera: function () {
+        renderScene.cameraController.update(playingField.dimensions);
+    },
 
-    var max_width = Math.max(
-      playingField.dimensions.scene_width,
-      playingField.dimensions.scene_height
-    );
+    recreate_light: function () {
+        renderScene.lightingRig.update(playingField.dimensions);
+    },
 
-    this.light.position.set(-max_width / 2, max_width / 2, max_width * 2);
-    this.light.target.position.set(0, 1, 0);
-    this.light.distance = max_width * 5;
-    this.light.castShadow = true;
-    this.light.shadowCameraNear = max_width / 10;
-    this.light.shadowCameraFar = max_width * 5;
-    this.light.shadowCameraFov = 50;
-    this.light.shadowBias = 0.001;
-    this.light.shadowDarkness = 1.1;
-    this.light.shadowMapWidth = 1024;
-    this.light.shadowMapHeight = 1024;
+    recreate_desk: function () {
+        const w2 = playingField.dimensions.scene_width * 2;
+        const h2 = playingField.dimensions.scene_height * 2;
+        if (w2 > 0 && h2 > 0) {
+            if (this.desk.geometry) {
+                this.desk.geometry.dispose();
+            }
+            this.desk.geometry = new THREE.PlaneGeometry(w2, h2, 1, 1);
+            this.desk.material.color = new THREE.Color(options.colors.desk);
+            this.desk.receiveShadow = options.use_shadows;
+        }
+    },
 
-    this.add(this.light);
-  },
+    recreate_renderer: function () {
+        if (this.renderer) {
+            this.renderer.shadowMap.enabled = true;
+            this.renderer.shadowMap.type = THREE.PCFShadowMap;
+            this.renderer.setClearColor(0xffffff, 1);
+            this.renderer.setSize(
+                playingField.dimensions.scene_width * 2,
+                playingField.dimensions.scene_height * 2
+            );
+        }
+    },
 
-  recreate_desk: function () {
-    this.remove(this.desk);
+    rerender: function () {
+        renderScene.updateDimensions(playingField.dimensions);
+        renderScene.render();
 
-    this.desk = new THREE.Mesh(new THREE.PlaneGeometry(
-        playingField.dimensions.scene_width * 2,
-        playingField.dimensions.scene_height * 2,
-        1,
-        1
-        ),
-        new THREE.MeshPhongMaterial()
-    );
-    this.desk.material.color = new THREE.Color(options.colors.desk);
-    this.desk.receiveShadow = options.use_shadows;
+        if (typeof $t === 'undefined' || !$t.writeDebugInfo) return;
+        const settingsElem = document.getElementById("settings");
+        if (!settingsElem) return;
 
-    this.add(this.desk);
-  },
+        let ren = new SettingsRenderer();
 
-  recreate_renderer: function () {
-    this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFShadowMap;
-    this.renderer.setClearColor(0xffffff, 1);
+        ["position", "rotation"].forEach(prop => {
+            ren.addVector(this.camera[prop], `camera_${prop}`, (vector) => {
+                this.camera[prop].set(vector.x, vector.y, vector.z);
+                this.camera.updateProjectionMatrix();
+            });
+        });
 
-    this.renderer.setSize(playingField.dimensions.scene_width * 2, playingField.dimensions.scene_height * 2);
-  },
-  recreate_barriers: function() {
-    this.remove(this.barrier);
-    this.barrier = new THREE.Mesh(new THREE.PlaneGeometry(
-        playingField.dimensions.scene_width * 2,
-        playingField.dimensions.scene_height * 2,
-        1,
-        1
-        ),
-        world.objects.barrier_left_material
-    );
-      this.barrier.material.color = new THREE.Color(0x223355);
-      this.barrier.receiveShadow = options.use_shadows;
+        ren.addVector(this.camera.quaternion, "camera_quaternion", (vector) => {
+            vector.divideScalar(100);
+            this.camera.quaternion.set(vector.x, vector.y, vector.z, this.camera.quaternion.w);
+            this.camera.updateProjectionMatrix();
+        });
 
-      this.barrier.body = world.objects.barrier_left_body;
-      this.barrier.position.set(-54.60804577227019, -60.08322845939975, 44.060798706154316);
-
-      this.add(this.barrier);
-  },
-
-  rerender: function () {
-    this.recreate_renderer();
-    this.recreate_ambient_light();
-    this.recreate_camera();
-    this.recreate_light();
-    this.recreate_desk();
-
-    // this.recreate_barriers();
-
-    this.renderer.render(this.instance, this.camera);
-
-    if(!$t.writeDebugInfo) return;
-    let ren = new SettingsRenderer();
-
-    ["position", "rotation"].forEach(prop => {
-      ren.addVector(scene.camera[prop], `camera_${prop}`, function(vector) {
-        scene.camera[prop].set(vector.x, vector.y, vector.z);
-        scene.camera.updateProjectionMatrix();
-      })
-    });
-
-    ren.addVector(scene.camera.quaternion, "camera_quaternion", function(vector) {
-      vector.divideScalar(100);
-      scene.camera.quaternion.set(vector.x, vector.y, vector.z, scene.camera.quaternion.w);
-      scene.camera.updateProjectionMatrix();
-    });
-
-    ["far", "fov"].forEach(prop => {
-      ren.add(scene.camera[prop], `camera_${prop}`, function(val) {
-        scene.camera[prop] = val;
-        scene.camera.updateProjectionMatrix();
-      })
-    })
-
-  },
+        ["far", "fov"].forEach(prop => {
+            ren.add(this.camera[prop], `camera_${prop}`, (val) => {
+                this.camera[prop] = val;
+                this.camera.updateProjectionMatrix();
+            });
+        });
+    }
 };
+
+export { CameraController, LightingRig, MeshBodySync, RenderScene };

@@ -11,6 +11,7 @@ import { dimensions, playingField } from "../src/config/dimensions.js";
 import { rndGen } from "../src/utils/rndGen.js";
 import { EventBus } from "../src/core/EventBus.js";
 import { GameLoop, StandardRollStrategy, ContinuousMotionStrategy } from "../src/core/GameLoop.js";
+import { MeshBodySync } from "../src/rendering/MeshBodySync.js";
 
 export class DiceBox {
 
@@ -58,13 +59,7 @@ export class DiceBox {
     }
 
     sync_meshes() {
-        for (var i in scene.instance.children) {
-            var interact = scene.instance.children[i];
-            if (interact.body != undefined) {
-                interact.position.copy(interact.body.position);
-                interact.quaternion.copy(interact.body.quaternion);
-            }
-        }
+        MeshBodySync.syncScene(scene.instance);
     }
 
     reinit(container) {

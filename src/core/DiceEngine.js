@@ -3,6 +3,8 @@ import { GameLoop, StandardRollStrategy, ContinuousMotionStrategy } from './Game
 import { createOptions } from '../config/options.js';
 import { PhysicsWorld } from '../physics/PhysicsWorld.js';
 import { BoxEnclosure } from '../enclosures/BoxEnclosure.js';
+import { RenderScene } from '../rendering/RenderScene.js';
+import { MeshBodySync } from '../rendering/MeshBodySync.js';
 
 /**
  * High-level engine coordinator.
@@ -15,7 +17,10 @@ export class DiceEngine {
 
         this.physicsWorld = config.physicsWorld || new PhysicsWorld();
         this.enclosure = config.enclosure || new BoxEnclosure();
-        this.renderScene = config.renderScene || null;
+        this.renderScene = config.renderScene || (config.container ? new RenderScene({
+            container: config.container,
+            options: this.options
+        }) : null);
         this.dimensions = config.dimensions || null;
 
         // Initialize GameLoop
@@ -38,6 +43,13 @@ export class DiceEngine {
      */
     get physics() {
         return this.physicsWorld;
+    }
+
+    /**
+     * Get rendering scene wrapper.
+     */
+    get rendering() {
+        return this.renderScene;
     }
 
     /**
@@ -87,7 +99,9 @@ export class DiceEngine {
      * Synchronize rigid bodies to 3D meshes.
      */
     syncMeshes() {
-        if (typeof this.onSyncMeshes === 'function') {
+        if (this.renderScene && typeof this.renderScene.syncMeshes === 'function') {
+            this.renderScene.syncMeshes();
+        } else if (typeof this.onSyncMeshes === 'function') {
             this.onSyncMeshes();
         }
     }
