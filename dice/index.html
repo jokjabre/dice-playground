@@ -129,6 +129,11 @@
             </select>
         </div>
 
+        <div id="motion-controls" class="toolbar-group" style="display: none;">
+            <button id="btn-motion" type="button">Enable Motion</button>
+            <span id="motion-status" style="font-size: 12px; opacity: 0.85;">Motion sensors off</span>
+        </div>
+
         <div id="predetermined-controls" class="toolbar-group" style="display: none;">
             <label for="predetermined-inputs">Target:</label>
             <input type="text" id="predetermined-inputs" value="6, 6, 6" placeholder="e.g. 6,6,6" style="width: 80px;" />
@@ -142,7 +147,7 @@
     </div>
 
     <div id="continuous-notice">
-        Continuous Live Gyro Active - Tilt device or drag pointer
+        Continuous Live Motion - Tilt device or drag pointer
     </div>
 
     <div id="selector_div" style="display: none;">

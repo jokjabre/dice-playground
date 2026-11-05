@@ -103,17 +103,55 @@ function setupDemoControls(box, presenter) {
     const btnRoll = $t.id('btn-roll');
     const btnClear = $t.id('btn-clear');
     const continuousNotice = $t.id('continuous-notice');
+    const motionControls = $t.id('motion-controls');
+    const btnMotion = $t.id('btn-motion');
+    const motionStatus = $t.id('motion-status');
 
     if (!modeSelect) return;
+
+    function setMotionStatus(text) {
+        if (motionStatus) motionStatus.textContent = text;
+    }
+
+    function enableMotion() {
+        if (!box.motionController) {
+            setMotionStatus('Motion controller unavailable');
+            return Promise.resolve(false);
+        }
+        return box.motionController.enable()
+            .then((granted) => {
+                if (!granted) {
+                    setMotionStatus(box.motionController.statusMessage || 'Motion sensors unavailable');
+                }
+                return granted;
+            })
+            .catch((err) => {
+                console.warn('Unable to enable motion sensors:', err);
+                setMotionStatus('Motion sensor error');
+                return false;
+            });
+    }
+
+    if (box.eventBus && typeof box.eventBus.on === 'function') {
+        box.eventBus.on('motion:status', ({ message }) => setMotionStatus(message));
+    }
+
+    if (btnMotion) {
+        btnMotion.addEventListener('click', (e) => {
+            e.stopPropagation();
+            enableMotion();
+        });
+    }
 
     function updateModeUI(mode) {
         if (predeterminedControls) predeterminedControls.style.display = (mode === 'predetermined') ? 'flex' : 'none';
         if (continuousNotice) continuousNotice.style.display = (mode === 'continuous') ? 'block' : 'none';
+        if (motionControls) motionControls.style.display = (mode === 'continuous') ? 'flex' : 'none';
 
         if (mode === 'continuous') {
             options.continuous_rolling = true;
             if (box.motionController) {
-                box.motionController.enable();
+                enableMotion();
             }
             // Trigger roll to populate field if empty
             if (box.dices.length === 0) {
@@ -126,6 +164,7 @@ function setupDemoControls(box, presenter) {
             if (box.motionController) {
                 box.motionController.disable();
             }
+            setMotionStatus('Motion sensors off');
         }
     }
 

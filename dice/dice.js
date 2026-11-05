@@ -278,7 +278,7 @@ export class DiceBox {
         }
 
         this.motionController = new MotionController({
-            physicsWorld: world,
+            physicsWorld: world.physicsWorld,
             getDices: () => diceFactory.dices,
             eventBus: this.eventBus
         });

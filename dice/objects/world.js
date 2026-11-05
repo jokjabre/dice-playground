@@ -42,6 +42,14 @@ export const world = {
         physicsWorld.removeBody(item);
     },
 
+    setGravity: function (x, y, z) {
+        physicsWorld.setGravity(x, y, z);
+    },
+
+    getGravity: function () {
+        return physicsWorld.getGravity();
+    },
+
     initiate: function () {
         // Apply gravity
         physicsWorld.setGravity(physics.world_gravity.x, physics.world_gravity.y, physics.world_gravity.z);

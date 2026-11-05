@@ -7,14 +7,30 @@ export class RaycastPicker {
     /**
      * @param {Object} [config={}]
      * @param {THREE.Camera} config.camera
-     * @param {HTMLElement} [config.container=window]
-     * @param {Object} [config.dimensions]
+     * @param {HTMLElement} [config.container] - Element containing the renderer canvas.
+     * @param {HTMLCanvasElement} [config.canvas] - Renderer canvas (auto-detected if omitted).
+     * @param {Object} [config.dimensions] - Legacy dimensions manager fallback.
      */
     constructor(config = {}) {
         this.camera = config.camera || null;
         this.container = config.container || null;
+        this.canvas = config.canvas || this._findCanvas();
         this.dimensions = config.dimensions || null;
         this.raycaster = (typeof THREE !== 'undefined') ? new THREE.Raycaster() : null;
+    }
+
+    /**
+     * Locates the renderer canvas without assuming a specific DOM layout.
+     * @returns {HTMLCanvasElement|null}
+     * @private
+     */
+    _findCanvas() {
+        if (typeof document === 'undefined') return null;
+        if (this.container && typeof this.container.querySelector === 'function') {
+            const nested = this.container.querySelector('canvas');
+            if (nested) return nested;
+        }
+        return document.querySelector('canvas');
     }
 
     /**
@@ -29,6 +45,49 @@ export class RaycastPicker {
             return null;
         }
 
+        if (!this._setRayFromClient(clientX, clientY)) {
+            this._setRayFromDimensions(clientX, clientY);
+        }
+
+        const intersects = this.raycaster.intersectObjects(diceMeshes);
+
+        if (intersects && intersects.length > 0) {
+            return intersects[0].object;
+        }
+        return null;
+    }
+
+    /**
+     * Uses standard normalized device coordinates when a renderer canvas is available.
+     * @param {number} clientX
+     * @param {number} clientY
+     * @returns {boolean} True if the ray was configured.
+     * @private
+     */
+    _setRayFromClient(clientX, clientY) {
+        if (!this.canvas || typeof this.canvas.getBoundingClientRect !== 'function' ||
+            typeof this.raycaster.setFromCamera !== 'function') {
+            return false;
+        }
+
+        const rect = this.canvas.getBoundingClientRect();
+        if (!rect.width || !rect.height) return false;
+
+        const ndc = new THREE.Vector2(
+            ((clientX - rect.left) / rect.width) * 2 - 1,
+            -((clientY - rect.top) / rect.height) * 2 + 1
+        );
+        this.raycaster.setFromCamera(ndc, this.camera);
+        return true;
+    }
+
+    /**
+     * Legacy fallback for environments without a canvas (e.g. headless use).
+     * @param {number} clientX
+     * @param {number} clientY
+     * @private
+     */
+    _setRayFromDimensions(clientX, clientY) {
         const dims = (this.dimensions && this.dimensions.dimensions) || {
             aspect: 1,
             scene_width: 1000,
@@ -48,12 +107,5 @@ export class RaycastPicker {
         ).sub(rayOrigin).normalize();
 
         this.raycaster.set(rayOrigin, targetDirection);
-        const intersects = this.raycaster.intersectObjects(diceMeshes);
-
-        if (intersects && intersects.length > 0) {
-            return intersects[0].object;
-        }
-        return null;
     }
 }
-
