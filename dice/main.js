@@ -102,12 +102,45 @@ function setupDemoControls(box, presenter) {
     const btnPredeterminedRoll = $t.id('btn-predetermined-roll');
     const btnRoll = $t.id('btn-roll');
     const btnClear = $t.id('btn-clear');
-    const continuousNotice = $t.id('continuous-notice');
     const motionControls = $t.id('motion-controls');
     const btnMotion = $t.id('btn-motion');
     const motionStatus = $t.id('motion-status');
+    const toolbar = $t.id('demo-toolbar');
+    const panelToggle = $t.id('engine-panel-toggle');
+    const btnHidePanel = $t.id('btn-hide-panel');
 
     if (!modeSelect) return;
+
+    // Engine options panel starts hidden and is opened by the "+" button.
+    function setPanelVisible(visible) {
+        if (toolbar) toolbar.hidden = !visible;
+        if (panelToggle) {
+            panelToggle.hidden = visible;
+            panelToggle.setAttribute('aria-expanded', String(visible));
+        }
+    }
+
+    if (panelToggle) {
+        panelToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setPanelVisible(true);
+        });
+    }
+
+    if (btnHidePanel) {
+        btnHidePanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setPanelVisible(false);
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && toolbar && !toolbar.hidden) {
+            setPanelVisible(false);
+        }
+    });
+
+    setPanelVisible(false);
 
     function setMotionStatus(text) {
         if (motionStatus) motionStatus.textContent = text;
@@ -145,7 +178,6 @@ function setupDemoControls(box, presenter) {
 
     function updateModeUI(mode) {
         if (predeterminedControls) predeterminedControls.style.display = (mode === 'predetermined') ? 'flex' : 'none';
-        if (continuousNotice) continuousNotice.style.display = (mode === 'continuous') ? 'block' : 'none';
         if (motionControls) motionControls.style.display = (mode === 'continuous') ? 'flex' : 'none';
 
         if (mode === 'continuous') {

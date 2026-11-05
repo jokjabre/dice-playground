@@ -1,14 +1,17 @@
 .dice-banner-container {
     position: fixed;
-    top: 20px;
+    bottom: 25px;
     left: 50%;
-    transform: translateX(-50%) translateY(-20px);
+    transform: translateX(-50%) translateY(20px);
     background: rgba(15, 23, 42, 0.85);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: #ffffff;
-    padding: 12px 28px;
-    border-radius: 9999px;
+    padding: 12px 24px;
+    border-radius: 16px;
+    white-space: nowrap;
+    width: max-content;
+    max-width: 92vw;
     box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 22px;
@@ -20,6 +23,8 @@
     transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     border: 1px solid rgba(255, 255, 255, 0.15);
     display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 12px;
 }
@@ -39,4 +44,13 @@
     color: #38bdf8;
     font-weight: 800;
     margin-left: 4px;
+}
+
+@media (max-width: 480px) {
+    .dice-banner-container {
+        font-size: 16px;
+        padding: 10px 16px;
+        gap: 8px;
+        bottom: 15px;
+    }
 }
