@@ -1,6 +1,8 @@
 import { EventBus } from './EventBus.js';
 import { GameLoop, StandardRollStrategy, ContinuousMotionStrategy } from './GameLoop.js';
 import { createOptions } from '../config/options.js';
+import { PhysicsWorld } from '../physics/PhysicsWorld.js';
+import { BoxEnclosure } from '../enclosures/BoxEnclosure.js';
 
 /**
  * High-level engine coordinator.
@@ -11,7 +13,8 @@ export class DiceEngine {
         this.options = config.options || createOptions();
         this.eventBus = config.eventBus || new EventBus();
 
-        this.physicsWorld = config.physicsWorld || null;
+        this.physicsWorld = config.physicsWorld || new PhysicsWorld();
+        this.enclosure = config.enclosure || new BoxEnclosure();
         this.renderScene = config.renderScene || null;
         this.dimensions = config.dimensions || null;
 
@@ -28,6 +31,30 @@ export class DiceEngine {
 
         this.standardStrategy = new StandardRollStrategy();
         this.continuousStrategy = new ContinuousMotionStrategy();
+    }
+
+    /**
+     * Get physics world wrapper.
+     */
+    get physics() {
+        return this.physicsWorld;
+    }
+
+    /**
+     * Set boundary enclosure.
+     * @param {Enclosure} enclosure
+     */
+    setEnclosure(enclosure) {
+        if (this.enclosure) {
+            this.enclosure.destroy(this.physicsWorld, this.renderScene);
+        }
+        this.enclosure = enclosure;
+        if (this.enclosure && this.physicsWorld) {
+            this.enclosure.createPhysicsBodies(this.physicsWorld);
+            if (this.dimensions) {
+                this.enclosure.update(this.dimensions);
+            }
+        }
     }
 
     /**

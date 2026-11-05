@@ -69,6 +69,9 @@ export class DiceBox {
 
     reinit(container) {
         playingField.dimensions.re_init(container);
+        if (world.updateDimensions) {
+            world.updateDimensions();
+        }
         scene.rerender(); 
     }
 
