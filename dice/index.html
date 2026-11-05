@@ -1,36 +1,45 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xml:lang="en" lang="en" xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
-<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-<meta name="keywords" content="DnD, dangeon and dragons, roleplay, dice, roller, 3D, RPG, wargame"/>
-<meta name="description" content="Online 3D dice roller"/>
-<title>Dice playground</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="keywords" content="DnD, dangeon and dragons, roleplay, dice, roller, 3D, RPG, wargame" />
+    <meta name="description" content="Online 3D dice roller" />
+    <title>Dice playground</title>
 
-<style type="text/css">@import "../main.css";</style>
-<style type="text/css">@import "dice.css";</style>
+    <style type="text/css">
+        @import "../main.css";
+    </style>
+    <style type="text/css">
+        @import "dice.css";
+    </style>
+    <style type="text/css">
+        @import "../src/presentation/ResultPresenter.css";
+    </style>
 
-<script src="../libs/three.min.js"></script>
-<script src="../libs/cannon.min.js"></script>
+    <script src="../libs/three.min.js"></script>
+    <script src="../libs/cannon.min.js"></script>
 
-<script type="module">
-    import { dice_initialize } from './main.js';
+    <script type="module">
+        import { dice_initialize } from './main.js';
 
-    dice_initialize(document.body);
-</script>
+        dice_initialize(document.body);
+    </script>
 </head>
 
 <body style="margin: 0">
 
     <div id="selector_div" style="display: none;">
         <div class="center_field">
-                
+
         </div>
-        <pre id="set" style="display: none;"></pre><br/>
+        <pre id="set" style="display: none;"></pre><br />
     </div>
     <div id="canvas"></div>
     <div id="settings" style="position: fixed; left:80vw; top:1vh;"></div>
     <pre id="middleDiv" style="position: fixed; top: 30vh; left: 40vw; font-size: xx-large;"></pre>
 
 </body>
+
 </html>

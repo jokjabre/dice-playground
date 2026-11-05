@@ -12,6 +12,9 @@ import { rndGen } from "../src/utils/rndGen.js";
 import { EventBus } from "../src/core/EventBus.js";
 import { GameLoop, StandardRollStrategy, ContinuousMotionStrategy } from "../src/core/GameLoop.js";
 import { MeshBodySync } from "../src/rendering/MeshBodySync.js";
+import { FaceReader } from "../src/determinism/FaceReader.js";
+import { FaceShifter } from "../src/determinism/FaceShifter.js";
+import { OutcomePredictor } from "../src/determinism/OutcomePredictor.js";
 
 export class DiceBox {
 
@@ -101,36 +104,23 @@ export class DiceBox {
     }
 
     get_dice_value(dice) {
-        var vector = new THREE.Vector3(0, 0, 1);
-        var closest_face, closest_angle = Math.PI * 2;
-        for (var i = 0, l = dice.geometry.faces.length; i < l; ++i) {
-            var face = dice.geometry.faces[i];
-            if (face.materialIndex == 0) continue;
-            var angle = face.normal.clone().applyQuaternion(dice.body.quaternion).angleTo(vector);
-            if (angle < closest_angle) {
-                closest_angle = angle;
-                closest_face = face;
-            }
-        }
-        var matindex = closest_face.materialIndex - 1;
-
-        return matindex;
+        return FaceReader.getDiceValue(dice);
     }
 
     get_dice_values(dices) {
-        var values = [];
-        for (var i = 0, l = dices.length; i < l; ++i) {
-            values.push(this.get_dice_value(dices[i]));
-        }
-        return values;
+        return FaceReader.getDiceValues(dices);
     }
 
     emulate_throw () {
-        while (!this.check_if_throw_finished()) {
-            ++this.iteration;
-            world.instance.step(options.frame_rate);
-        }
-        return this.get_dice_values(diceFactory.dices);
+        const predictor = new OutcomePredictor({
+            physicsWorld: world,
+            options: options
+        });
+        return predictor.emulateThrow({
+            world: world,
+            dices: diceFactory.dices,
+            frameRate: options.frame_rate
+        });
     }
 
     /**
@@ -178,30 +168,27 @@ export class DiceBox {
     }
 
     shift_dice_faces(dice, value, res) {
-        var r =  [1, 6];
-        if (!(value >= r[0] && value <= r[1])) return;
-        var num = value - res;
-        var geom = dice.geometry.clone();
-        for (var i = 0, l = geom.faces.length; i < l; ++i) {
-            var matindex = geom.faces[i].materialIndex;
-            if (matindex == 0) continue;
-            matindex += num - 1;
-            while (matindex > r[1]) matindex -= r[1];
-            while (matindex < r[0]) matindex += r[1];
-            geom.faces[i].materialIndex = matindex + 1;
-        }
-        dice.geometry = geom;
+        FaceShifter.shiftDiceFaces(dice, value, res);
     }
 
     roll (vectors, values, callback) {
 
-        this.prepare_dices_for_roll(vectors);
         if (values != undefined && values.length) {
             options.use_adaptive_timestep = false;
-            var res = this.emulate_throw();
+            const predictor = new OutcomePredictor({
+                physicsWorld: world,
+                options: options
+            });
+            predictor.predictAndShift({
+                prepareDices: (vecs) => this.prepare_dices_for_roll(vecs),
+                vectors: vectors,
+                targetValues: values,
+                dices: diceFactory.dices,
+                world: world,
+                frameRate: options.frame_rate
+            });
+        } else {
             this.prepare_dices_for_roll(vectors);
-            for (var i in res)
-                this.shift_dice_faces(diceFactory.dices[i], values[i], res[i]);
         }
         this.callback = callback;
         this.running = (new Date()).getTime();

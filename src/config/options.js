@@ -1,5 +1,5 @@
 export const defaultOptions = {
-    continuous_rolling: true,
+    continuous_rolling: false,
     frame_rate: 1 / 60,
     diceCount: 6,
     use_adaptive_timestep: false,

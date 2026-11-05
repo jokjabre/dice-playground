@@ -3,6 +3,7 @@ import { DiceBox } from './dice.js';
 import { $t } from '../teal.js';
 import { scene } from './objects/scene.js';
 import { options } from '../src/config/options.js';
+import { BannerResultPresenter } from '../src/presentation/ResultPresenter.js';
 
 export function dice_initialize(container) {
 
@@ -37,6 +38,7 @@ export function dice_initialize(container) {
     }
 
     var box = new DiceBox(canvas, { w: 500, h: 300 });
+    var presenter = new BannerResultPresenter({ container: document.body, autoHide: true, hideDelay: 4000 });
 
     $t.bind(window, 'resize', function() {
         canvas.style.width = window.innerWidth - 1 + 'px';
@@ -60,11 +62,9 @@ export function dice_initialize(container) {
 
     function after_roll(result) {
         if (params.chromakey || params.noresult) return;
-        var res = result.join(' ');
-
-        if (result.length > 1) res += ' = ' + 
-                (result.reduce(function(s, a) { return s + a; }));
-
+        if (presenter) {
+            presenter.present(result);
+        }
     }
 
     box.bind_mouse(container, before_roll, after_roll);
