@@ -51,5 +51,6 @@ legacy/     Frozen pre-reorganization demo.
 
 ## Status
 
-Phase 0: the legacy demo is frozen in `legacy/`, and the workspace, tooling,
-test, and CI scaffolding are in place. No engine packages exist yet.
+Phase 1: the legacy demo is frozen in `legacy/`, the workspace, tooling, test,
+and CI scaffolding are in place, and `@dice/core` provides the environment-
+agnostic engine primitives.
