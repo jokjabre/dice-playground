@@ -49,7 +49,8 @@ export class CameraController {
             this.camera.aspect = this.aspect;
         }
         if (dimensions.wall_height) {
-            this.camera.far = dimensions.wall_height * 1.3;
+            // Keep enough headroom so dice at the bottom of tall enclosures (e.g. sphere) aren't clipped by the far plane
+            this.camera.far = dimensions.wall_height + 1500;
             this.camera.position.z = dimensions.wall_height;
         }
         this.camera.updateProjectionMatrix();

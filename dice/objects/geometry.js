@@ -9,6 +9,7 @@ import { physics } from "./physics.js";
 import { options } from "../../src/config/options.js";
 import { dimensions, playingField } from "../../src/config/dimensions.js";
 import { rndGen } from "../../src/utils/rndGen.js";
+import { makeSpawnPosition } from "../../src/config/spawnProfile.js";
 
 export class Geometry {
     static lastKnownVectors = [];
@@ -35,13 +36,7 @@ export class Geometry {
         Geometry.lastKnownVectors = [];
         for (let i = 0; i < options.diceCount; i++) {
             var vec = rndGen.make_random_vector(vector);
-            var pos = {
-                x: playingField.dimensions.scene_width * (vec.x > 0 ? -1 : 1) * 0.9,
-                y: playingField.dimensions.scene_height * (vec.y > 0 ? -1 : 1) * 0.9,
-                z: rndGen.rnd() * 200 + 200
-            };
-            var projector = Math.abs(vec.x / vec.y);
-            if (projector > 1.0) pos.y /= projector; else pos.x *= projector;
+            var pos = makeSpawnPosition(rndGen, vec, playingField.dimensions);
             var velvec = rndGen.make_random_vector(vector);
             var velocity = { x: velvec.x * boost, y: velvec.y * boost, z: -10 };
             var angle = {

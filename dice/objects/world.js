@@ -5,12 +5,14 @@ import { ContactManager } from "../../src/physics/ContactManager.js";
 import { BoxEnclosure } from "../../src/enclosures/BoxEnclosure.js";
 import { SphereEnclosure } from "../../src/enclosures/SphereEnclosure.js";
 import { CylinderEnclosure } from "../../src/enclosures/CylinderEnclosure.js";
+import { renderScene } from "./scene.js";
+import { spawnProfile } from "../../src/config/spawnProfile.js";
 
 
 /**
  * Modular Physics World singleton wrapper.
  * Backwards compatible with legacy diceFactory and scene references,
- * powered internally by PhysicsWorld, ContactManager, and BoxEnclosure.
+ * powered internally by PhysicsWorld, ContactManager, and selectable Enclosures.
  */
 const contactManager = new ContactManager({
     die_friction: physics.die_friction,
@@ -25,6 +27,86 @@ export const physicsWorld = new PhysicsWorld({
 
 export const boxEnclosure = new BoxEnclosure();
 
+let currentEnclosure = boxEnclosure;
+let currentEnclosureType = 'box';
+
+/**
+ * Factory map for selectable enclosure types.
+ */
+const enclosureFactories = {
+    box: () => new BoxEnclosure(),
+    sphere: () => new SphereEnclosure({ radius: 700, segments: 42 }),
+    cylinder: () => new CylinderEnclosure({ radius: 300, height: 800, segments: 16 })
+};
+
+/**
+ * Tear down the active enclosure and activate a new one of the given type.
+ * @param {'box'|'sphere'|'cylinder'} type
+ * @returns {boolean} true if the enclosure was switched
+ */
+function activateEnclosure(type) {
+    const factory = enclosureFactories[type];
+    if (!factory) return false;
+
+    currentEnclosure.destroy(physicsWorld, renderScene);
+
+    // Flat desk plane only makes sense for the box enclosure
+    if (renderScene.desk) {
+        renderScene.desk.visible = (type === 'box');
+    }
+    spawnProfile.mode = type;
+
+    const enclosure = factory();
+    enclosure.createPhysicsBodies(physicsWorld);
+    if (typeof enclosure.createVisualMeshes === 'function') {
+        try {
+            enclosure.createVisualMeshes(renderScene);
+        } catch (err) {
+            console.warn('Enclosure visual mesh creation failed:', err);
+        }
+    }
+    enclosure.update(playingField.dimensions);
+
+    currentEnclosure = enclosure;
+    currentEnclosureType = type;
+    world.enclosure = enclosure;
+
+    // Die material is needed regardless of enclosure type
+    world.objects.die_material = contactManager.getOrCreateMaterial('die');
+    world.objects.dice_body_material = world.objects.die_material;
+
+    // Expose materials and bodies for legacy scene/diceFactory references (box only)
+    if (type === 'box' && enclosure.materials && enclosure.bodies) {
+        world.objects.desk_material = enclosure.materials.desk;
+        world.objects.barrier_left_material = enclosure.materials.barrier_left;
+        world.objects.barrier_right_material = enclosure.materials.barrier_right;
+        world.objects.barrier_top_material = enclosure.materials.barrier_top;
+        world.objects.barrier_bottom_material = enclosure.materials.barrier_bottom;
+
+        world.objects.desk_body = enclosure.bodies.desk;
+        world.objects.screen_body = enclosure.bodies.screen;
+        world.objects.barrier_left_body = enclosure.bodies.barrier_left;
+        world.objects.barrier_right_body = enclosure.bodies.barrier_right;
+        world.objects.barrier_top_body = enclosure.bodies.barrier_top;
+        world.objects.barrier_bottom_body = enclosure.bodies.barrier_bottom;
+    } else if (type !== 'box') {
+        // Clear stale box references so nothing uses removed bodies
+        world.objects.desk_material = null;
+        world.objects.barrier_left_material = null;
+        world.objects.barrier_right_material = null;
+        world.objects.barrier_top_material = null;
+        world.objects.barrier_bottom_material = null;
+        world.objects.desk_body = undefined;
+        world.objects.screen_body = undefined;
+        world.objects.barrier_left_body = undefined;
+        world.objects.barrier_right_body = undefined;
+        world.objects.barrier_top_body = undefined;
+        world.objects.barrier_bottom_body = undefined;
+    }
+
+    return true;
+}
+
 export const world = {
     // Underlying CANNON.World instance
     get instance() {
@@ -32,7 +114,11 @@ export const world = {
     },
 
     physicsWorld: physicsWorld,
-    enclosure: boxEnclosure,
+    enclosure: currentEnclosure,
+
+    get enclosureType() {
+        return currentEnclosureType;
+    },
 
     add: function (item) {
         physicsWorld.addBody(item);
@@ -54,30 +140,20 @@ export const world = {
         // Apply gravity
         physicsWorld.setGravity(physics.world_gravity.x, physics.world_gravity.y, physics.world_gravity.z);
 
-        // Build enclosure bodies
-        boxEnclosure.destroy(physicsWorld);
-        boxEnclosure.createPhysicsBodies(physicsWorld);
-        boxEnclosure.update(playingField.dimensions);
+        // Rebuild the active enclosure bodies
+        activateEnclosure(currentEnclosureType);
+    },
 
-        // Expose materials and bodies for legacy scene/diceFactory references
-        this.objects.die_material = contactManager.getOrCreateMaterial('die');
-        this.objects.dice_body_material = this.objects.die_material;
-        this.objects.desk_material = boxEnclosure.materials.desk;
-        this.objects.barrier_left_material = boxEnclosure.materials.barrier_left;
-        this.objects.barrier_right_material = boxEnclosure.materials.barrier_right;
-        this.objects.barrier_top_material = boxEnclosure.materials.barrier_top;
-        this.objects.barrier_bottom_material = boxEnclosure.materials.barrier_bottom;
-
-        this.objects.desk_body = boxEnclosure.bodies.desk;
-        this.objects.screen_body = boxEnclosure.bodies.screen;
-        this.objects.barrier_left_body = boxEnclosure.bodies.barrier_left;
-        this.objects.barrier_right_body = boxEnclosure.bodies.barrier_right;
-        this.objects.barrier_top_body = boxEnclosure.bodies.barrier_top;
-        this.objects.barrier_bottom_body = boxEnclosure.bodies.barrier_bottom;
+    /**
+     * Switch the active enclosure type and rebuild its physics bodies/meshes.
+     * @param {'box'|'sphere'|'cylinder'} type
+     */
+    setEnclosure: function (type) {
+        return activateEnclosure(type);
     },
 
     updateDimensions: function () {
-        boxEnclosure.update(playingField.dimensions);
+        currentEnclosure.update(playingField.dimensions);
     },
 
     // Legacy objects property for backwards compatibility with diceFactory & scene.js

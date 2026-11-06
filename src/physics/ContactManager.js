@@ -19,7 +19,8 @@ export class ContactManager {
             barrier_right: 0,
             barrier_top: 0,
             barrier_bottom: 0,
-            screen: 0
+            screen: 0,
+            sphere_boundary: 0
         }, config.die_friction || {});
 
         this.die_restitution = Object.assign({
@@ -29,7 +30,8 @@ export class ContactManager {
             barrier_right: 1.0,
             barrier_top: 1.0,
             barrier_bottom: 1.0,
-            screen: 0.5
+            screen: 0.5,
+            sphere_boundary: 1.0
         }, config.die_restitution || {});
     }
 

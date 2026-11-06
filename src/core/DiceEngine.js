@@ -49,6 +49,9 @@ export class DiceEngine {
         // Initialize boundary enclosure
         if (this.enclosure && this.physicsWorld) {
             this.enclosure.createPhysicsBodies(this.physicsWorld);
+            if (this.renderScene && typeof this.enclosure.createVisualMeshes === 'function') {
+                this.enclosure.createVisualMeshes(this.renderScene);
+            }
             if (this.dimensions) {
                 this.enclosure.update(this.dimensions);
             }
@@ -110,6 +113,9 @@ export class DiceEngine {
         this.enclosure = enclosure;
         if (this.enclosure && this.physicsWorld) {
             this.enclosure.createPhysicsBodies(this.physicsWorld);
+            if (this.renderScene && typeof this.enclosure.createVisualMeshes === 'function') {
+                this.enclosure.createVisualMeshes(this.renderScene);
+            }
             if (this.dimensions) {
                 this.enclosure.update(this.dimensions);
             }

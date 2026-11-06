@@ -5,6 +5,7 @@ import { scene } from './objects/scene.js';
 import { options } from '../src/config/options.js';
 import { BannerResultPresenter } from '../src/presentation/ResultPresenter.js';
 import { ContinuousMotionStrategy, StandardRollStrategy } from '../src/core/GameLoop.js';
+import { world } from './objects/world.js';
 
 export function dice_initialize(container) {
 
@@ -96,6 +97,7 @@ export function dice_initialize(container) {
  * Attaches the multi-mode toolbar and controls for Task 8 demo.
  */
 function setupDemoControls(box, presenter) {
+    const enclosureSelect = $t.id('enclosure-select');
     const modeSelect = $t.id('mode-select');
     const predeterminedControls = $t.id('predetermined-controls');
     const predeterminedInputs = $t.id('predetermined-inputs');
@@ -198,6 +200,20 @@ function setupDemoControls(box, presenter) {
             }
             setMotionStatus('Motion sensors off');
         }
+    }
+
+    if (enclosureSelect) {
+        enclosureSelect.addEventListener('change', (e) => {
+            e.stopPropagation();
+            const switched = world.setEnclosure(e.target.value);
+            if (switched) {
+                box.clear();
+                if (presenter) presenter.clear();
+                $t.roll();
+            } else {
+                console.warn('Unknown enclosure type:', e.target.value);
+            }
+        });
     }
 
     modeSelect.addEventListener('change', (e) => {

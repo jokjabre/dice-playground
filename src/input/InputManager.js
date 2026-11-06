@@ -9,6 +9,7 @@
  */
 
 import { rndGen as defaultRndGen } from '../utils/rndGen.js';
+import { makeSpawnPosition } from '../config/spawnProfile.js';
 
 export class InputManager {
     /**
@@ -85,7 +86,6 @@ export class InputManager {
      * @returns {Array<Object>} Standardized 3D throw descriptions.
      */
     generateThrowVectors(vector, boost) {
-        const { scene_width, scene_height } = this._getSceneDimensions();
         const diceCount = (this.options && this.options.diceCount !== undefined)
             ? this.options.diceCount
             : 1;
@@ -94,18 +94,7 @@ export class InputManager {
 
         for (let i = 0; i < diceCount; i++) {
             const vec = rnd.make_random_vector(vector);
-            const pos = {
-                x: scene_width * (vec.x > 0 ? -1 : 1) * 0.9,
-                y: scene_height * (vec.y > 0 ? -1 : 1) * 0.9,
-                z: rnd.rnd() * 200 + 200
-            };
-
-            const projector = Math.abs(vec.x / vec.y);
-            if (projector > 1.0) {
-                pos.y /= projector;
-            } else {
-                pos.x *= projector;
-            }
+            const pos = makeSpawnPosition(rnd, vec, this._getSceneDimensions());
 
             const velvec = rnd.make_random_vector(vector);
             const velocity = { x: velvec.x * boost, y: velvec.y * boost, z: -10 };
