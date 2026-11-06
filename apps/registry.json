@@ -1,0 +1,65 @@
+[
+  {
+    "id": "landing",
+    "category": "landing",
+    "title": "Dice Playground",
+    "description": "Directory of sandbox, demos, and games built on the dice engine.",
+    "path": "apps/landing",
+    "url": "",
+    "status": "planned"
+  },
+  {
+    "id": "sandbox",
+    "category": "sandbox",
+    "title": "Sandbox",
+    "description": "Full multi-mode dice playground.",
+    "path": "apps/sandbox",
+    "url": "apps/sandbox/",
+    "status": "planned"
+  },
+  {
+    "id": "enclosure-gallery",
+    "category": "demo",
+    "title": "Enclosure Gallery",
+    "description": "Box, sphere, and cylinder physics showcase.",
+    "path": "apps/demos/enclosure-gallery",
+    "url": "apps/demos/enclosure-gallery/",
+    "status": "planned"
+  },
+  {
+    "id": "physics-lab",
+    "category": "demo",
+    "title": "Physics Lab",
+    "description": "Tune gravity, materials, damping, mass, and solver settings.",
+    "path": "apps/demos/physics-lab",
+    "url": "apps/demos/physics-lab/",
+    "status": "planned"
+  },
+  {
+    "id": "predetermined-roll",
+    "category": "demo",
+    "title": "Predetermined Roll",
+    "description": "Predict natural results and shift face mappings to requested values.",
+    "path": "apps/demos/predetermined-roll",
+    "url": "apps/demos/predetermined-roll/",
+    "status": "planned"
+  },
+  {
+    "id": "dice-visual-lab",
+    "category": "demo",
+    "title": "Dice Visual Lab",
+    "description": "Explore chamfer, radius, labels, colors, and face mappings.",
+    "path": "apps/demos/dice-visual-lab",
+    "url": "apps/demos/dice-visual-lab/",
+    "status": "planned"
+  },
+  {
+    "id": "yamb",
+    "category": "game",
+    "title": "Yamb",
+    "description": "Scorecard dice game built on the engine.",
+    "path": "apps/games/yamb",
+    "url": "apps/games/yamb/",
+    "status": "planned"
+  }
+]

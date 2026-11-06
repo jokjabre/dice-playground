@@ -1,0 +1,39 @@
+{
+  "name": "dice-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "apps/demos/*",
+    "apps/games/*"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "dev:legacy": "vite --open /legacy/dice/",
+    "dev:sandbox": "vite --config apps/sandbox/vite.config.js",
+    "build": "node tools/build-apps.mjs",
+    "preview": "vite preview",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check": "npm run check:types && npm run lint && npm run check:boundaries",
+    "check:types": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "check:boundaries": "depcruise packages apps tools --config .dependency-cruiser.cjs --exclude '^legacy/' --exclude 'dist/'"
+  },
+  "devDependencies": {
+    "@playwright/test": "*",
+    "@types/node": "*",
+    "dependency-cruiser": "*",
+    "eslint": "*",
+    "happy-dom": "*",
+    "typescript": "*",
+    "vite": "*",
+    "vitest": "*"
+  }
+}

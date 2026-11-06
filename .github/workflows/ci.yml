@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - reorganization
+  pull_request:
+
+jobs:
+  legacy-smoke:
+    name: Install and legacy smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Legacy smoke
+        run: |
+          test -f legacy/dice/index.html
+          test -f legacy/main.css
+          test -f legacy/teal.js
+          test -f legacy/libs/three.min.js
+          test -f legacy/libs/cannon.min.js
+          node --check legacy/dice/main.js
+          node --check legacy/dice/dice.js
+          grep -q '../main.css' legacy/dice/index.html
+          grep -q '../libs/three.min.js' legacy/dice/index.html
+          grep -q '../libs/cannon.min.js' legacy/dice/index.html
