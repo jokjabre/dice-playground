@@ -6,16 +6,17 @@ import { Enclosure } from './Enclosure.js';
  *
  * Since the bundled cannon.js build has no Trimesh/heightfield support for
  * concave colliders, the inner surface is approximated by a set of infinite
- * static Plane bodies tangent to the sphere, with their normals facing the
- * center. The intersection of these half-spaces forms a convex polyhedron
- * that tightly circumscribes the sphere, so dice are contained regardless of
- * where they hit. Increase `segments` for a tighter approximation.
+ * static Plane bodies with their normals facing the center. The planes are
+ * positioned so the resulting polyhedron is INSCRIBED inside the visual
+ * sphere (die surface ends flush with the wireframe). Increase `segments`
+ * for a tighter approximation. A hard post-step containment clamp is a
+ * backstop for very high die speeds.
  */
 export class SphereEnclosure extends Enclosure {
     /**
      * @param {Object} [options]
-     * @param {number} [options.radius=700] Radius of the spherical containment
-     * @param {number} [options.segments=42] Number of tangent boundary planes (more = tighter approximation)
+     * @param {number} [options.radius=700] Radius of the spherical containment (visual sphere)
+     * @param {number} [options.segments=128] Number of tangent boundary planes (more = tighter approximation)
      * @param {Object} [options.center] Sphere center {x, y, z} (defaults to world origin)
      * @param {boolean} [options.showMesh=true] Whether to render a translucent sphere mesh
      * @param {number} [options.meshOpacity=0.15] Opacity of the visual sphere when shown
@@ -23,10 +24,33 @@ export class SphereEnclosure extends Enclosure {
     constructor(options = {}) {
         super(options);
         this.radius = options.radius || 700;
-        this.segments = Math.max(4, options.segments || 42);
+        this.segments = Math.max(20, options.segments || 128);
         this.center = Object.assign({ x: 0, y: 0, z: 0 }, options.center || {});
         this.showMesh = options.showMesh !== false;
-        this.meshOpacity = options.meshOpacity !== undefined ? options.meshOpacity : 0.15;
+        this.meshOpacity = options.meshOpacity !== undefined ? options.meshOpacity : 0.10;
+        this.dieRadius = options.dieRadius !== undefined ? options.dieRadius : 40;
+    }
+
+    /**
+     * Measure the covering radius of the plane lattice: the smallest
+     * cosine of the angle between any surface direction and the closest
+     * plane normal. Used to inscribe the polyhedron in the visual sphere.
+     * @param {Array<{x:number, y:number, z:number}>} dirs
+     * @returns {number} cos(coveringRadius), with a small safety margin
+     */
+    _measureCoverage(dirs) {
+        const samples = this._sphereDirections(1200);
+        let minCos = 1;
+        for (const s of samples) {
+            let m = -1;
+            for (const u of dirs) {
+                const d = s.x * u.x + s.y * u.y + s.z * u.z;
+                if (d > m) m = d;
+            }
+            if (m < minCos) minCos = m;
+        }
+        // Clamp into a sane range; dense lattices get within a few units of the sphere
+        return Math.max(0.8, Math.min(0.999, minCos));
     }
 
     /**
@@ -58,16 +82,61 @@ export class SphereEnclosure extends Enclosure {
         const contact = cm.createDieContact('sphere_boundary', sphereMat);
         physicsWorld.addContactMaterial(contact);
 
+        // Hard containment backstop: the infinite one-sided planes are the
+        // primary bounce surface, but at very high die speeds this cannon.js
+        // build loses resolution. Clamp dynamic bodies inside the sphere and
+        // reflect their radial velocity every step so dice can never escape.
+        const center = this.center;
+        this._containBodies = (bodies) => {
+            const maxR = Math.max(10, this.radius - this.dieRadius - 2);
+            const maxRSq = maxR * maxR;
+            for (const body of bodies) {
+                if (!body || body.mass === 0 || !body.position) continue;
+                const dx = body.position.x - center.x;
+                const dy = body.position.y - center.y;
+                const dz = body.position.z - center.z;
+                const distSq = dx * dx + dy * dy + dz * dz;
+                if (distSq > maxRSq && distSq > 0) {
+                    const dist = Math.sqrt(distSq);
+                    const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+                    // Pull the die back inside the boundary
+                    body.position.set(
+                        center.x + nx * maxR,
+                        center.y + ny * maxR,
+                        center.z + nz * maxR
+                    );
+                    // Reflect outward radial velocity (restitution 0.6)
+                    const vel = body.velocity;
+                    const vr = vel.x * nx + vel.y * ny + vel.z * nz;
+                    if (vr > 0) {
+                        const e = 0.6;
+                        vel.x -= (1 + e) * vr * nx;
+                        vel.y -= (1 + e) * vr * ny;
+                        vel.z -= (1 + e) * vr * nz;
+                    }
+                }
+            }
+        };
+        if (physicsWorld.postStepCallbacks) {
+            physicsWorld.postStepCallbacks.push(this._containBodies);
+        }
+
         const { x: cx, y: cy, z: cz } = this.center;
-        const r = this.radius;
+        // Measure the lattice covering radius: the largest angle from any
+        // direction to the nearest plane normal. Planes are pushed in by
+        // cos(coveringRadius) so their polyhedron stays strictly INSCRIBED
+        // inside the visual sphere instead of bulging out past the wireframe.
+        this._dirs = this._sphereDirections(this.segments);
+        this._cosCover = this._measureCoverage(this._dirs);
+        this._updatePlaneDistance();
+        const r = this._planeDistance;
         const zAxis = new CANNON.Vec3(0, 0, 1);
         const xAxis = new CANNON.Vec3(1, 0, 0);
 
-        this._dirs = this._sphereDirections(this.segments);
         for (const dir of this._dirs) {
             const body = new CANNON.RigidBody(0, new CANNON.Plane(), sphereMat);
 
-            // Plane sits on the sphere surface at the outward direction point.
+            // Plane sits on the inscribed polyhedron at the outward direction point.
             body.position.set(cx + dir.x * r, cy + dir.y * r, cz + dir.z * r);
 
             // Rotate the plane's +Z normal to face the sphere center (inward).
@@ -101,7 +170,7 @@ export class SphereEnclosure extends Enclosure {
             color: 0x88ccff,
             transparent: true,
             opacity: this.meshOpacity,
-            side: THREE.BackSide,
+            side: THREE.DoubleSide,
             depthWrite: false,
             wireframe: false
         });
@@ -110,15 +179,47 @@ export class SphereEnclosure extends Enclosure {
         mesh.userData.baseRadius = this.radius;
 
         this.visualMeshes.push(mesh);
+
+        // Faint outline so the full boundary reads clearly from any angle
+        const wireframe = new THREE.LineSegments(
+            new THREE.WireframeGeometry(new THREE.SphereGeometry(this.radius, 16, 12)),
+            new THREE.LineBasicMaterial({
+                color: 0x2f6f9f,
+                transparent: true,
+                opacity: 0.45
+            })
+        );
+        wireframe.position.copy(mesh.position);
+        wireframe.userData.baseRadius = this.radius;
+        this.visualMeshes.push(wireframe);
+
         if (renderScene) {
-            if (typeof renderScene.add === 'function') {
-                renderScene.add(mesh);
-            } else if (typeof renderScene.addObject === 'function') {
-                renderScene.addObject(mesh);
+            for (const item of this.visualMeshes) {
+                if (typeof renderScene.add === 'function') {
+                    renderScene.add(item);
+                } else if (typeof renderScene.addObject === 'function') {
+                    renderScene.addObject(item);
+                }
             }
         }
 
         return this.visualMeshes;
+    }
+
+    /**
+     * Tear down: unregister the containment callback, then remove bodies/meshes.
+     * @param {PhysicsWorld} physicsWorld
+     * @param {THREE.Scene|RenderScene} [renderScene]
+     */
+    destroy(physicsWorld, renderScene) {
+        if (physicsWorld && this._containBodies && physicsWorld.postStepCallbacks) {
+            const idx = physicsWorld.postStepCallbacks.indexOf(this._containBodies);
+            if (idx !== -1) {
+                physicsWorld.postStepCallbacks.splice(idx, 1);
+            }
+        }
+        this._containBodies = null;
+        super.destroy(physicsWorld, renderScene);
     }
 
     /**
@@ -132,6 +233,12 @@ export class SphereEnclosure extends Enclosure {
             const newRadius = Math.max(400, dimensions.scale * 15.5);
             if (Math.abs(newRadius - this.radius) > 1) {
                 this.radius = newRadius;
+                this.dieRadius = Math.max(0, dimensions.scale * 0.9);
+                this._updatePlaneDistance();
+                this._repositionBodies();
+            } else if (dimensions.scale * 0.9 !== this.dieRadius) {
+                this.dieRadius = Math.max(0, dimensions.scale * 0.9);
+                this._updatePlaneDistance();
                 this._repositionBodies();
             }
         }
@@ -142,12 +249,22 @@ export class SphereEnclosure extends Enclosure {
     }
 
     /**
+     * Recompute the plane distance so a die (vertex radius dieRadius)
+     * resting against a plane has its surface flush with the visual sphere.
+     */
+    _updatePlaneDistance() {
+        const inner = Math.max(10, this.radius - this.dieRadius);
+        this._planeDistance = inner * (this._cosCover || 1);
+    }
+
+    /**
      * Move tangent plane bodies to match the current radius.
      */
     _repositionBodies() {
         if (!this._dirs) return;
+        this._updatePlaneDistance();
         const { x: cx, y: cy, z: cz } = this.center;
-        const r = this.radius;
+        const r = this._planeDistance;
         for (let i = 0; i < this.physicsBodies.length && i < this._dirs.length; i++) {
             const d = this._dirs[i];
             this.physicsBodies[i].position.set(cx + d.x * r, cy + d.y * r, cz + d.z * r);

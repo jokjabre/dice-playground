@@ -35,7 +35,7 @@ let currentEnclosureType = 'box';
  */
 const enclosureFactories = {
     box: () => new BoxEnclosure(),
-    sphere: () => new SphereEnclosure({ radius: 700, segments: 42 }),
+    sphere: () => new SphereEnclosure({ radius: 700, segments: 128 }),
     cylinder: () => new CylinderEnclosure({ radius: 300, height: 800, segments: 16 })
 };
 

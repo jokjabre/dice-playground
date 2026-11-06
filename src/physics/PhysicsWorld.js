@@ -23,6 +23,9 @@ export class PhysicsWorld {
 
         this.contactManager = config.contactManager || new ContactManager();
         this.bodies = [];
+        // Optional callbacks run after each step with the live body list.
+        // Used by enclosures to enforce hard containment inside their bounds.
+        this.postStepCallbacks = [];
     }
 
     /**
@@ -49,6 +52,13 @@ export class PhysicsWorld {
      */
     step(dt) {
         this.world.step(dt);
+        for (const cb of this.postStepCallbacks) {
+            try {
+                cb(this.bodies);
+            } catch (err) {
+                console.warn('PhysicsWorld postStep callback failed:', err);
+            }
+        }
     }
 
     /**

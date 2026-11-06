@@ -90,6 +90,50 @@ export class BoxEnclosure extends Enclosure {
     }
 
     /**
+     * Create a faint wireframe outline of the tray (floor perimeter up to the ceiling)
+     * so the boundaries read clearly. Geometry is unit-sized and scaled in update().
+     * @param {THREE.Scene|RenderScene} renderScene
+     * @returns {Array<THREE.LineSegments>}
+     */
+    createVisualMeshes(renderScene) {
+        if (typeof THREE === 'undefined') {
+            return this.visualMeshes;
+        }
+
+        const geometry = new THREE.EdgesGeometry(new THREE.BoxGeometry(2, 2, 2));
+        const material = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.35
+        });
+        const outline = new THREE.LineSegments(geometry, material);
+        // Unit box spans -1..1; scale to tray half-extents in update()
+        outline.position.set(0, 0, this.screenHeight / 2);
+        outline.scale.set(this._halfWidth() , this._halfHeight(), this.screenHeight / 2);
+
+        this.visualMeshes.push(outline);
+
+        if (renderScene && typeof renderScene.add === 'function') {
+            renderScene.add(outline);
+        }
+
+        return this.visualMeshes;
+    }
+
+    _halfWidth() {
+        // Fall back to sensible defaults until update() runs
+        return (this._lastDimensions && this._lastDimensions.scene_width)
+            ? this._lastDimensions.scene_width * this.boundaryMargin
+            : 465;
+    }
+
+    _halfHeight() {
+        return (this._lastDimensions && this._lastDimensions.scene_height)
+            ? this._lastDimensions.scene_height * this.boundaryMargin
+            : 280;
+    }
+
+    /**
      * Position barrier bodies according to current dimensions.
      * @param {Object} dimensions
      * @param {number} dimensions.scene_width
@@ -97,6 +141,7 @@ export class BoxEnclosure extends Enclosure {
      */
     update(dimensions) {
         if (!dimensions) return;
+        this._lastDimensions = dimensions;
 
         const w = dimensions.scene_width;
         const h = dimensions.scene_height;
@@ -116,6 +161,12 @@ export class BoxEnclosure extends Enclosure {
         }
         if (this.bodies.screen) {
             this.bodies.screen.position.set(w, h, this.screenHeight);
+        }
+
+        // Sync faint tray outline (unit geometry scaled to half-extents)
+        for (const outline of this.visualMeshes) {
+            outline.scale.set(w * m, h * m, this.screenHeight / 2);
+            outline.position.set(0, 0, this.screenHeight / 2);
         }
     }
 }

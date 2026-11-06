@@ -31,7 +31,7 @@ export class ContactManager {
             barrier_top: 1.0,
             barrier_bottom: 1.0,
             screen: 0.5,
-            sphere_boundary: 1.0
+            sphere_boundary: 0.6
         }, config.die_restitution || {});
     }
 
