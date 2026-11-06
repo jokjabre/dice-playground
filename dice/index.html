@@ -205,6 +205,21 @@
         </div>
 
         <div class="toolbar-group">
+            <label for="camera-distance" style="font-weight: 600;">Camera:</label>
+            <input type="range" id="camera-distance" min="0.4" max="3" step="0.05" value="1"
+                title="Distance from scene (zoom)" style="width: 110px;" />
+            <span id="camera-distance-value" style="font-size: 12px; opacity: 0.9; min-width: 36px;">1.00&times;</span>
+            <label for="camera-near" style="font-size: 12px;">Near:</label>
+            <input type="number" id="camera-near" min="0.1" step="1" placeholder="1"
+                title="Near clipping plane (default 1)" style="width: 56px;" />
+            <label for="camera-far" style="font-size: 12px;">Far:</label>
+            <input type="number" id="camera-far" min="0" step="100" placeholder="auto"
+                title="Far clipping plane (0/empty = auto: distance + 1500)" style="width: 68px;" />
+            <button id="camera-reset" type="button" title="Reset camera to defaults"
+                style="padding: 6px 10px; font-size: 12px;">Reset</button>
+        </div>
+
+        <div class="toolbar-group">
             <button id="btn-roll" type="button">Throw</button>
             <button id="btn-clear" type="button">Clear</button>
         </div>

@@ -1,4 +1,5 @@
 import { Enclosure } from './Enclosure.js';
+import { computeCylinderSize } from '../config/enclosureScale.js';
 
 /**
  * Architectural placeholder / contract for a cylindrical enclosure (e.g. drinking water glass or cup).
@@ -80,9 +81,10 @@ export class CylinderEnclosure extends Enclosure {
     }
 
     update(dimensions) {
-        if (dimensions && dimensions.scene_width) {
-            this.radius = dimensions.scene_width * 0.4;
-            this.height = dimensions.wall_height || 800;
+        if (dimensions && (dimensions.scene_width || dimensions.scene_height)) {
+            const size = computeCylinderSize(dimensions);
+            this.radius = size.radius;
+            this.height = size.height;
         }
         for (const mesh of this.visualMeshes) {
             const baseRadius = mesh.userData.baseRadius || this.radius;

@@ -13,6 +13,11 @@ export const defaultOptions = {
 
     use_shadows: true,
 
+    // Camera controls (multiplier on the auto wall-height distance; far: 0 = auto)
+    camera_distance: 1.0,
+    camera_near: 1,
+    camera_far: 0,
+
     colors: {
         dice_label: '#aaaaaa',
         dice_body: '#202020',

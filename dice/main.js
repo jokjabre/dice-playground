@@ -98,6 +98,11 @@ export function dice_initialize(container) {
  */
 function setupDemoControls(box, presenter) {
     const enclosureSelect = $t.id('enclosure-select');
+    const cameraDistance = $t.id('camera-distance');
+    const cameraDistanceValue = $t.id('camera-distance-value');
+    const cameraNear = $t.id('camera-near');
+    const cameraFar = $t.id('camera-far');
+    const cameraReset = $t.id('camera-reset');
     const modeSelect = $t.id('mode-select');
     const predeterminedControls = $t.id('predetermined-controls');
     const predeterminedInputs = $t.id('predetermined-inputs');
@@ -200,6 +205,45 @@ function setupDemoControls(box, presenter) {
             }
             setMotionStatus('Motion sensors off');
         }
+    }
+
+    function applyCameraSettings() {
+        const dist = parseFloat(cameraDistance ? cameraDistance.value : '1');
+        options.camera_distance = (isFinite(dist) && dist > 0) ? dist : 1;
+        const near = cameraNear ? parseFloat(cameraNear.value) : NaN;
+        options.camera_near = (isFinite(near) && near > 0) ? near : 1;
+        const far = cameraFar ? parseFloat(cameraFar.value) : NaN;
+        options.camera_far = (isFinite(far) && far > 0) ? far : 0;
+        if (cameraDistanceValue) {
+            cameraDistanceValue.textContent = `${options.camera_distance.toFixed(2)}×`;
+        }
+        if (scene && typeof scene.recreate_camera === 'function') {
+            scene.recreate_camera();
+        }
+        if (scene && typeof scene.render_once === 'function') {
+            scene.render_once();
+        }
+    }
+
+    if (cameraDistance) {
+        cameraDistance.addEventListener('input', (e) => {
+            e.stopPropagation();
+            applyCameraSettings();
+        });
+    }
+    if (cameraNear) cameraNear.addEventListener('change', applyCameraSettings);
+    if (cameraFar) cameraFar.addEventListener('change', applyCameraSettings);
+    if (cameraReset) {
+        cameraReset.addEventListener('click', (e) => {
+            e.stopPropagation();
+            options.camera_distance = 1;
+            options.camera_near = 1;
+            options.camera_far = 0;
+            if (cameraDistance) cameraDistance.value = '1';
+            if (cameraNear) cameraNear.value = '';
+            if (cameraFar) cameraFar.value = '';
+            applyCameraSettings();
+        });
     }
 
     if (enclosureSelect) {

@@ -37,7 +37,7 @@ export class DiceBox {
         // Initialize modular GameLoop
         this.gameLoop = new GameLoop({
             stepPhysics: (dt) => {
-                world.instance.step(dt);
+                world.physicsWorld.step(dt);
             },
             syncMeshes: () => {
                 this.sync_meshes();

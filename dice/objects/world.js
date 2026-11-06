@@ -7,6 +7,7 @@ import { SphereEnclosure } from "../../src/enclosures/SphereEnclosure.js";
 import { CylinderEnclosure } from "../../src/enclosures/CylinderEnclosure.js";
 import { renderScene } from "./scene.js";
 import { spawnProfile } from "../../src/config/spawnProfile.js";
+import { computeSphereRadius, computeDieRadius, computeCylinderSize } from "../../src/config/enclosureScale.js";
 
 
 /**
@@ -32,11 +33,24 @@ let currentEnclosureType = 'box';
 
 /**
  * Factory map for selectable enclosure types.
+ * Sizes are derived from the current playing field so physics and visuals
+ * are born consistent with each other.
  */
+const dimsNow = () => playingField.dimensions;
 const enclosureFactories = {
     box: () => new BoxEnclosure(),
-    sphere: () => new SphereEnclosure({ radius: 700, segments: 128 }),
-    cylinder: () => new CylinderEnclosure({ radius: 300, height: 800, segments: 16 })
+    sphere: () => {
+        const d = dimsNow();
+        return new SphereEnclosure({
+            radius: computeSphereRadius(d),
+            dieRadius: computeDieRadius(d),
+            segments: 128
+        });
+    },
+    cylinder: () => {
+        const size = computeCylinderSize(dimsNow());
+        return new CylinderEnclosure({ radius: size.radius, height: size.height, segments: 24 });
+    }
 };
 
 /**
@@ -70,6 +84,8 @@ function activateEnclosure(type) {
     currentEnclosure = enclosure;
     currentEnclosureType = type;
     world.enclosure = enclosure;
+    // Keep enclosed-mode spawn distances proportionate to the current size
+    spawnProfile.radius = (typeof enclosure.radius === 'number') ? enclosure.radius : 700;
 
     // Die material is needed regardless of enclosure type
     world.objects.die_material = contactManager.getOrCreateMaterial('die');
@@ -154,6 +170,7 @@ export const world = {
 
     updateDimensions: function () {
         currentEnclosure.update(playingField.dimensions);
+        spawnProfile.radius = (typeof currentEnclosure.radius === 'number') ? currentEnclosure.radius : 700;
     },
 
     // Legacy objects property for backwards compatibility with diceFactory & scene.js

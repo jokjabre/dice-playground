@@ -5,7 +5,8 @@
  * start INSIDE the active boundary instead of above a flat tray.
  */
 export const spawnProfile = {
-    mode: 'box' // 'box' | 'sphere' | 'cylinder'
+    mode: 'box', // 'box' | 'sphere' | 'cylinder'
+    radius: 700  // current enclosure radius (used by enclosed spawns)
 };
 
 /**
@@ -33,10 +34,11 @@ export function makeSpawnPosition(rnd, vec, dimensions) {
         return pos;
     }
 
-    // Enclosed modes: spawn inside the upper hemisphere, away from the walls
+    // Enclosed modes: spawn inside the upper region, away from the walls
+    const r = spawnProfile.radius || 700;
     return {
-        x: (rnd.rnd() * 2 - 1) * 200,
-        y: (rnd.rnd() * 2 - 1) * 200,
-        z: 350 + rnd.rnd() * 150
+        x: (rnd.rnd() * 2 - 1) * r * 0.28,
+        y: (rnd.rnd() * 2 - 1) * r * 0.28,
+        z: r * 0.4 + rnd.rnd() * r * 0.25
     };
 }

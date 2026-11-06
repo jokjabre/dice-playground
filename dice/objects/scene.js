@@ -60,7 +60,11 @@ export const scene = {
     },
 
     recreate_camera: function () {
-        renderScene.cameraController.update(playingField.dimensions);
+        renderScene.cameraController.update(playingField.dimensions, options);
+    },
+
+    render_once: function () {
+        renderScene.render();
     },
 
     recreate_light: function () {

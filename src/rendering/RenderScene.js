@@ -124,7 +124,7 @@ export class RenderScene {
         if (!dimensions) return;
 
         // Update camera
-        this.cameraController.update(dimensions);
+        this.cameraController.update(dimensions, this.options);
 
         // Update lighting
         this.lightingRig.update(dimensions);

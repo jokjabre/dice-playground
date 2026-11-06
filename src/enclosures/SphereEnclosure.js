@@ -1,4 +1,5 @@
 import { Enclosure } from './Enclosure.js';
+import { computeSphereRadius, computeDieRadius } from '../config/enclosureScale.js';
 
 /**
  * Hollow spherical enclosure.
@@ -11,6 +12,9 @@ import { Enclosure } from './Enclosure.js';
  * sphere (die surface ends flush with the wireframe). Increase `segments`
  * for a tighter approximation. A hard post-step containment clamp is a
  * backstop for very high die speeds.
+ *
+ * Size is derived from the playing field dimensions (computeSphereRadius),
+ * applied identically to physics, containment, and visuals.
  */
 export class SphereEnclosure extends Enclosure {
     /**
@@ -23,6 +27,8 @@ export class SphereEnclosure extends Enclosure {
      */
     constructor(options = {}) {
         super(options);
+        // Radius is fixed and single-sourced: both the physics planes and the
+        // visual meshes derive from it, so they can never diverge.
         this.radius = options.radius || 700;
         this.segments = Math.max(20, options.segments || 128);
         this.center = Object.assign({ x: 0, y: 0, z: 0 }, options.center || {});
@@ -224,20 +230,17 @@ export class SphereEnclosure extends Enclosure {
 
     /**
      * Update boundary scale when the container/viewport resizes.
-     * Repositions the tangent planes and rescales the visual mesh to the new radius.
+     * Recomputes radius from the same sizing used at activation, repositions
+     * the tangent planes, the containment clamp, and rescales the visuals.
      * @param {Object} dimensions
      */
     update(dimensions) {
-        if (dimensions && dimensions.scale) {
-            // ~700 at the default 500x300 field (scale ~= 45), clamped to a sane minimum
-            const newRadius = Math.max(400, dimensions.scale * 15.5);
-            if (Math.abs(newRadius - this.radius) > 1) {
+        if (dimensions && (dimensions.scene_width || dimensions.scale)) {
+            const newRadius = computeSphereRadius(dimensions);
+            const newDieRadius = computeDieRadius(dimensions);
+            if (Math.abs(newRadius - this.radius) > 1 || Math.abs(newDieRadius - this.dieRadius) > 1) {
                 this.radius = newRadius;
-                this.dieRadius = Math.max(0, dimensions.scale * 0.9);
-                this._updatePlaneDistance();
-                this._repositionBodies();
-            } else if (dimensions.scale * 0.9 !== this.dieRadius) {
-                this.dieRadius = Math.max(0, dimensions.scale * 0.9);
+                this.dieRadius = newDieRadius;
                 this._updatePlaneDistance();
                 this._repositionBodies();
             }
@@ -245,6 +248,20 @@ export class SphereEnclosure extends Enclosure {
         for (const mesh of this.visualMeshes) {
             const base = mesh.userData.baseRadius || this.radius;
             mesh.scale.setScalar(this.radius / base);
+        }
+    }
+
+    /**
+     * Move tangent plane bodies to match the current plane distance.
+     */
+    _repositionBodies() {
+        if (!this._dirs) return;
+        this._updatePlaneDistance();
+        const { x: cx, y: cy, z: cz } = this.center;
+        const r = this._planeDistance;
+        for (let i = 0; i < this.physicsBodies.length && i < this._dirs.length; i++) {
+            const d = this._dirs[i];
+            this.physicsBodies[i].position.set(cx + d.x * r, cy + d.y * r, cz + d.z * r);
         }
     }
 
@@ -257,17 +274,5 @@ export class SphereEnclosure extends Enclosure {
         this._planeDistance = inner * (this._cosCover || 1);
     }
 
-    /**
-     * Move tangent plane bodies to match the current radius.
-     */
-    _repositionBodies() {
-        if (!this._dirs) return;
-        this._updatePlaneDistance();
-        const { x: cx, y: cy, z: cz } = this.center;
-        const r = this._planeDistance;
-        for (let i = 0; i < this.physicsBodies.length && i < this._dirs.length; i++) {
-            const d = this._dirs[i];
-            this.physicsBodies[i].position.set(cx + d.x * r, cy + d.y * r, cz + d.z * r);
-        }
-    }
+
 }

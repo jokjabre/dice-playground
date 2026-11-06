@@ -41,19 +41,30 @@ export class CameraController {
      * @param {number} dimensions.scene_width
      * @param {number} dimensions.scene_height
      * @param {number} dimensions.wall_height
+     * @param {Object} [cameraOptions]
+     * @param {number} [cameraOptions.camera_distance=1] Multiplier on the auto camera distance
+     * @param {number} [cameraOptions.camera_near=1] Near clipping plane (0 = default)
+     * @param {number} [cameraOptions.camera_far=0] Far clipping plane (0 = auto: distance + 1500)
      */
-    update(dimensions) {
+    update(dimensions, cameraOptions) {
         if (!dimensions) return;
         if (dimensions.scene_width && dimensions.scene_height) {
             this.aspect = dimensions.scene_width / dimensions.scene_height;
             this.camera.aspect = this.aspect;
         }
         if (dimensions.wall_height) {
-            // Keep enough headroom so dice at the bottom of tall enclosures (e.g. sphere) aren't clipped by the far plane
-            this.camera.far = dimensions.wall_height + 1500;
-            this.camera.position.z = dimensions.wall_height;
+            const distanceMultiplier = (cameraOptions && cameraOptions.camera_distance > 0)
+                ? cameraOptions.camera_distance
+                : 1;
+            const distance = dimensions.wall_height * distanceMultiplier;
+            this.camera.position.z = distance;
+            const near = (cameraOptions && cameraOptions.camera_near > 0) ? cameraOptions.camera_near : 1;
+            this.camera.near = near;
+            this.camera.far = (cameraOptions && cameraOptions.camera_far > 0)
+                ? cameraOptions.camera_far
+                : distance + 1500;
+            this.camera.updateProjectionMatrix();
         }
-        this.camera.updateProjectionMatrix();
     }
 
     /**
