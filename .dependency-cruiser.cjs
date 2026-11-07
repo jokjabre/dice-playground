@@ -76,7 +76,7 @@ module.exports = {
       severity: 'error',
       comment: '@dice/enclosures may depend only on @dice/core contracts.',
       from: { path: '^packages/enclosures/' },
-      to: { path: '^packages/(?!core/)' }
+      to: { path: '^packages/(?!core/|enclosures/)[^/]+/' }
     },
     {
       name: 'ui-core-only',

@@ -1,0 +1,16 @@
+{
+  "name": "@dice/enclosures",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Composable box, sphere, and cylinder enclosures built on core contracts.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}
