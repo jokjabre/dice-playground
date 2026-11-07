@@ -37,11 +37,25 @@ module.exports = {
       to: { path: '^packages/(?!core/)' }
     },
     {
-      name: 'physics-rendering-dice-core-only',
+      name: 'physics-core-only',
       severity: 'error',
-      comment: 'Physics, rendering, and dice may depend only on @dice/core.',
-      from: { path: '^packages/(physics|rendering|dice)/' },
-      to: { path: '^packages/(?!core/)' }
+      comment: 'Physics may depend only on @dice/core.',
+      from: { path: '^packages/physics/' },
+      to: { path: '^packages/(?!core/|physics/)[^/]+/' }
+    },
+    {
+      name: 'rendering-core-only',
+      severity: 'error',
+      comment: 'Rendering may depend only on @dice/core.',
+      from: { path: '^packages/rendering/' },
+      to: { path: '^packages/(?!core/|rendering/)[^/]+/' }
+    },
+    {
+      name: 'dice-core-only',
+      severity: 'error',
+      comment: 'Dice may depend only on @dice/core.',
+      from: { path: '^packages/dice/' },
+      to: { path: '^packages/(?!core/|dice/)[^/]+/' }
     },
     {
       name: 'content-core-dice-only',
