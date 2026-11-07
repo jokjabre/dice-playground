@@ -1,0 +1,227 @@
+import { createBrowserRandom } from '@dice/core';
+
+import {
+  buildThrowVectors,
+  evaluateGesture,
+  getPointerCoords,
+  gestureDistance
+} from './gesture.js';
+
+/**
+ * @typedef {Object} InputHostLike
+ * @property {(request: Record<string, any>) => Promise<any>} roll
+ * @property {(x: number, y: number, z: number) => void} setGravity
+ * @property {(ids: string[], impulse: { x: number, y: number, z: number }, worldPoint?: { x: number, y: number, z: number }) => void} applyImpulse
+ * @property {() => string[]} getDiceIds
+ * @property {() => string[]} getSelection
+ * @property {(ids: string[]) => void} setSelection
+ * @property {(id: string) => void} toggleSelection
+ * @property {(ndc: { x: number, y: number }) => any} pick
+ * @property {() => Record<string, any>} getMetrics
+ * @property {() => Record<string, any>} getSpawnProfile
+ * @property {{ emit: (name: string, payload: any) => void }} events
+ */
+
+/**
+ * @typedef {Object} PointerInputOptions
+ * @property {any} [container]
+ * @property {number} [dieCount]
+ * @property {number} [dieInertia]
+ * @property {any} [rng]
+ * @property {() => number} [now]
+ */
+
+/**
+ * Pointer (mouse/touch) flick input. Converts drag gestures into throw vectors
+ * and delegates the roll to the host. It never mutates dice bodies directly.
+ */
+export class PointerInput {
+  /** @type {string} */
+  id = 'pointer-input';
+
+  /** @type {any} */
+  #container;
+
+  /** @type {number|null} */
+  #dieCount;
+
+  /** @type {number} */
+  #dieInertia;
+
+  /** @type {any|null} */
+  #rng;
+
+  /** @type {() => number} */
+  #now;
+
+  /** @type {InputHostLike|null} */
+  #host = null;
+
+  /** @type {{ x: number, y: number }|null} */
+  #start = null;
+
+  /** @type {number} */
+  #startTime = 0;
+
+  /** @type {boolean} */
+  #enabled = false;
+
+  /** @type {(event: any) => void} */
+  #onPointerDown;
+
+  /** @type {(event: any) => void} */
+  #onPointerUp;
+
+  /** @type {() => void} */
+  #onPointerCancel;
+
+  /**
+   * @param {PointerInputOptions} [options]
+   */
+  constructor(options = {}) {
+    this.#container = options.container ?? null;
+    this.#dieCount = options.dieCount ?? null;
+    this.#dieInertia = options.dieInertia ?? 13;
+    this.#rng = options.rng ?? null;
+    this.#now = options.now ?? (() => Date.now());
+
+    this.#onPointerDown = (event) => this.#handlePointerDown(event);
+    this.#onPointerUp = (event) => this.#handlePointerUp(event);
+    this.#onPointerCancel = () => this.#cancelGesture();
+  }
+
+  /**
+   * @param {InputHostLike} host
+   * @returns {void}
+   */
+  attach(host) {
+    this.#host = host;
+    this.enable();
+  }
+
+  /**
+   * @returns {void}
+   */
+  detach() {
+    this.disable();
+    this.#host = null;
+    this.#start = null;
+  }
+
+  /**
+   * @returns {void}
+   */
+  enable() {
+    if (this.#enabled || !this.#container) return;
+    this.#container.addEventListener('mousedown', this.#onPointerDown);
+    this.#container.addEventListener('touchstart', this.#onPointerDown, { passive: true });
+    this.#container.addEventListener('mouseup', this.#onPointerUp);
+    this.#container.addEventListener('touchend', this.#onPointerUp, { passive: true });
+    this.#container.addEventListener('touchcancel', this.#onPointerCancel, { passive: true });
+    this.#container.addEventListener('mouseleave', this.#onPointerCancel);
+    this.#enabled = true;
+  }
+
+  /**
+   * @returns {void}
+   */
+  disable() {
+    if (!this.#enabled || !this.#container) return;
+    this.#container.removeEventListener('mousedown', this.#onPointerDown);
+    this.#container.removeEventListener('touchstart', this.#onPointerDown);
+    this.#container.removeEventListener('mouseup', this.#onPointerUp);
+    this.#container.removeEventListener('touchend', this.#onPointerUp);
+    this.#container.removeEventListener('touchcancel', this.#onPointerCancel);
+    this.#container.removeEventListener('mouseleave', this.#onPointerCancel);
+    this.#start = null;
+    this.#enabled = false;
+  }
+
+  /**
+   * @returns {boolean}
+   */
+  get enabled() {
+    return this.#enabled;
+  }
+
+  /**
+   * Resolve the active random source lazily so importing this module in Node
+   * does not require browser randomness.
+   *
+   * @returns {any}
+   */
+  #resolveRng() {
+    if (this.#rng) return this.#rng;
+    this.#rng = createBrowserRandom();
+    return this.#rng;
+  }
+
+  /**
+   * @param {any} event
+   * @returns {void}
+   */
+  #handlePointerDown(event) {
+    if (!this.#enabled || !this.#host) return;
+    this.#startTime = this.#now();
+    this.#start = getPointerCoords(event);
+  }
+
+  /**
+   * @param {any} event
+   * @returns {void}
+   */
+  #handlePointerUp(event) {
+    if (!this.#enabled || !this.#host || !this.#start) return;
+
+    const start = this.#start;
+    const end = getPointerCoords(event);
+    const durationMs = this.#now() - this.#startTime;
+    this.#start = null;
+
+    const metrics = this.#host.getMetrics ? this.#host.getMetrics() : null;
+    const gesture = evaluateGesture({ start, end, durationMs, metrics });
+    if (!gesture.isSwipe) return;
+
+    const spawnProfile = this.#host.getSpawnProfile
+      ? this.#host.getSpawnProfile()
+      : null;
+    const diceIds = this.#host.getDiceIds ? this.#host.getDiceIds() : [];
+    const count =
+      this.#dieCount ?? (diceIds.length > 0 ? diceIds.length : 6);
+    if (count <= 0) return;
+
+    const vectors = buildThrowVectors({
+      direction: gesture.normalized,
+      boost: gesture.boost,
+      count,
+      rng: this.#resolveRng(),
+      metrics,
+      spawnProfile,
+      dieInertia: this.#dieInertia
+    });
+    if (vectors.length === 0) return;
+
+    const result = this.#host.roll({ vectors, dice: vectors.length });
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => {});
+    }
+  }
+
+  /**
+   * @returns {void}
+   */
+  #cancelGesture() {
+    this.#start = null;
+  }
+}
+
+/**
+ * Distance of a pointer delta. Exported for tests and demos.
+ *
+ * @param {{ x: number, y: number }} a
+ * @param {{ x: number, y: number }} b
+ * @returns {number}
+ */
+export function distanceBetween(a, b) {
+  return gestureDistance({ x: b.x - a.x, y: b.y - a.y });
+}

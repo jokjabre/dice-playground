@@ -1,0 +1,17 @@
+{
+  "name": "@dice/determinism",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Optional predetermined-roll plugin: isolated outcome prediction and face shifting.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*",
+    "@dice/dice": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}
