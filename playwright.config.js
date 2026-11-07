@@ -9,6 +9,17 @@ export default defineConfig({
     ? [['github'], ['html', { open: 'never' }]]
     : [['list']],
   use: {
-    trace: 'on-first-retry'
+    baseURL: 'http://127.0.0.1:5180',
+    trace: 'on-first-retry',
+    launchOptions: {
+      args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+    }
+  },
+  webServer: {
+    command:
+      'npx vite build --config e2e/fixtures/rendering/vite.config.js && npx vite preview --config e2e/fixtures/rendering/vite.config.js --port 5180 --strictPort',
+    url: 'http://127.0.0.1:5180/dice-playground/e2e-fixtures/rendering/',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120000
   }
 });
