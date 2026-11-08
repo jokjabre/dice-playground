@@ -1,0 +1,185 @@
+@import '@dice/ui/styles/theme.css';
+@import '@dice/ui/styles/base.css';
+@import '@dice/ui/styles/controls.css';
+@import '@dice/ui/styles/banner.css';
+
+:root {
+  --sandbox-header-gap: 8px;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dice-ui-bg);
+  color: var(--dice-ui-text);
+  font-family: var(--dice-ui-font);
+}
+
+/* Fixed app shell: the page never scrolls. The stage owns the remaining
+ * space and the control panel scrolls internally when it overflows. */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.sandbox-header {
+  padding: 12px 16px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sandbox-header-gap);
+}
+
+.sandbox-header h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.01em;
+}
+
+.sandbox-caption {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dice-ui-text-muted);
+}
+
+.sandbox-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px 16px;
+  min-height: 0;
+}
+
+.sandbox-stage {
+  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--dice-ui-border);
+  background: var(--dice-ui-bg);
+  touch-action: none;
+}
+
+/* The renderer sizes its canvas from viewport metrics and writes the
+ * pixel size inline, which would otherwise drive the stage size and
+ * feedback through the resize observer. Pin the canvas to the stage box
+ * so the layout always owns the stage size and the full render stays
+ * visible. */
+.sandbox-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.sandbox-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  max-height: 48%;
+  overflow-y: auto;
+}
+
+.sandbox-panel .dice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.sandbox-panel .dice-panel-region {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Mode-conditional groups (motion / predetermined) match the legacy
+ * toolbar grouping: a labeled control row with an action button. */
+.sandbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: var(--dice-ui-surface);
+  border: 1px solid var(--dice-ui-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+}
+
+.sandbox-group[hidden] {
+  display: none;
+}
+
+.sandbox-group .dice-control-input {
+  width: 120px;
+}
+
+.sandbox-target-error {
+  color: var(--dice-ui-accent);
+  font-size: 12px;
+  flex-basis: 100%;
+}
+
+.sandbox-info {
+  background: var(--dice-ui-surface);
+  border: 1px solid var(--dice-ui-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--dice-ui-text-muted);
+}
+
+.sandbox-info-row {
+  display: block;
+  white-space: nowrap;
+}
+
+.sandbox-info-row dt,
+.sandbox-info-row dd {
+  display: inline;
+  margin: 0;
+}
+
+.sandbox-info-row dt {
+  font-weight: 700;
+  color: var(--dice-ui-text);
+}
+
+.sandbox-error {
+  margin: 8px 16px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--dice-ui-accent);
+  border-radius: 12px;
+  background: var(--dice-ui-surface);
+  font-size: 14px;
+}
+
+@media (min-width: 860px) {
+  .sandbox-main {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .sandbox-panel {
+    width: 320px;
+    flex: none;
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-banner,
+  .dice-banner-visible {
+    transition: none;
+  }
+}

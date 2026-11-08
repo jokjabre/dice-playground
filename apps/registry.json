@@ -15,7 +15,7 @@
     "description": "Full multi-mode dice playground.",
     "path": "apps/sandbox",
     "url": "apps/sandbox/",
-    "status": "planned"
+    "status": "live"
   },
   {
     "id": "enclosure-gallery",

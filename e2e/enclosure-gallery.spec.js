@@ -263,7 +263,9 @@ test.describe('landing page', () => {
     await expect(page.getByTestId('badge-enclosure-gallery')).toHaveText('live');
 
     await expect(page.getByTestId('card-sandbox')).toBeVisible();
-    await expect(page.getByTestId('badge-sandbox')).toHaveText('planned');
+    await expect(page.getByTestId('badge-sandbox')).toHaveText('live');
+    const sandboxCard = page.getByTestId('card-sandbox');
+    expect(await sandboxCard.getAttribute('href')).toBe('./apps/sandbox/');
     await expect(page.getByTestId('card-yamb')).toBeVisible();
 
     await expect(page.getByTestId('card-enclosure-gallery')).toHaveCount(1);

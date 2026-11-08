@@ -34,6 +34,12 @@ import {
 /**
  * Pointer (mouse/touch) flick input. Converts drag gestures into throw vectors
  * and delegates the roll to the host. It never mutates dice bodies directly.
+ *
+ * A gesture starts with a press inside the container and completes on the
+ * next pointer-up, even when the finger or cursor has left the container:
+ * completion is observed on the container's window, following the legacy
+ * body-level listeners. Leaving the container therefore never cancels a
+ * swipe; only `touchcancel` does.
  */
 export class PointerInput {
   /** @type {string} */
@@ -74,6 +80,15 @@ export class PointerInput {
 
   /** @type {() => void} */
   #onPointerCancel;
+
+  /**
+   * Window that owns the container. Pointer-up is also observed there so a
+   * flick that leaves the container still completes, like the legacy
+   * body-level listeners. Null when no window is available (Node tests).
+   *
+   * @type {any|null}
+   */
+  #upTarget = null;
 
   /**
    * @param {PointerInputOptions} [options]
@@ -118,7 +133,18 @@ export class PointerInput {
     this.#container.addEventListener('mouseup', this.#onPointerUp);
     this.#container.addEventListener('touchend', this.#onPointerUp, { passive: true });
     this.#container.addEventListener('touchcancel', this.#onPointerCancel, { passive: true });
-    this.#container.addEventListener('mouseleave', this.#onPointerCancel);
+    // Pointer-up is additionally observed on the container's window. A
+    // flick that leaves the container before release (over a control panel,
+    // the header, or outside the stage) must still count; the legacy demo
+    // listened on the body, so any release completed the gesture.
+    // In-stage releases bubble to the window too, which is harmless: the
+    // first handler clears `#start`, so the second one returns early.
+    const upTarget = this.#resolveUpTarget();
+    if (upTarget && upTarget !== this.#container) {
+      upTarget.addEventListener('mouseup', this.#onPointerUp);
+      upTarget.addEventListener('touchend', this.#onPointerUp, { passive: true });
+    }
+    this.#upTarget = upTarget;
     this.#enabled = true;
   }
 
@@ -132,9 +158,25 @@ export class PointerInput {
     this.#container.removeEventListener('mouseup', this.#onPointerUp);
     this.#container.removeEventListener('touchend', this.#onPointerUp);
     this.#container.removeEventListener('touchcancel', this.#onPointerCancel);
-    this.#container.removeEventListener('mouseleave', this.#onPointerCancel);
+    if (this.#upTarget && this.#upTarget !== this.#container) {
+      this.#upTarget.removeEventListener('mouseup', this.#onPointerUp);
+      this.#upTarget.removeEventListener('touchend', this.#onPointerUp);
+    }
+    this.#upTarget = null;
     this.#start = null;
     this.#enabled = false;
+  }
+
+  /**
+   * Resolve the window that owns the container for pointer-up observation.
+   * Returns null when the container does not expose a window (tests).
+   *
+   * @returns {any|null}
+   */
+  #resolveUpTarget() {
+    const view = this.#container?.ownerDocument?.defaultView;
+    if (view && typeof view.addEventListener === 'function') return view;
+    return null;
   }
 
   /**

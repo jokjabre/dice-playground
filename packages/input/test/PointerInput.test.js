@@ -3,7 +3,12 @@ import { createSeededRandom } from '@dice/core';
 import { describe, expect, it } from 'vitest';
 
 import { PointerInput } from '../src/index.js';
-import { createFakeContainer, createFakeHost, mouseEvent } from './fakes.js';
+import {
+  createFakeContainer,
+  createFakeHost,
+  createFakeTarget,
+  mouseEvent
+} from './fakes.js';
 
 describe('PointerInput', () => {
   it('emits throw vectors for a swipe through the host', () => {
@@ -67,6 +72,57 @@ describe('PointerInput', () => {
     input.detach();
   });
 
+  it('completes a swipe whose release happens outside the container', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    const fakeWindow = createFakeTarget();
+    container.ownerDocument = { defaultView: fakeWindow };
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-window'),
+      now: () => now
+    });
+
+    input.attach(host);
+    expect(fakeWindow.listenerCount('mouseup')).toBe(1);
+    expect(fakeWindow.listenerCount('touchend')).toBe(1);
+
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    // The pointer leaves the container mid-gesture ...
+    container.dispatch('mouseleave', mouseEvent(100, 100));
+    // ... and the release lands on the window instead.
+    now += 200;
+    fakeWindow.dispatch('mouseup', mouseEvent(400, 100));
+
+    const rolls = host.calls.filter((call) => call.method === 'roll');
+    expect(rolls).toHaveLength(1);
+    expect(rolls[0].args[0].vectors.length).toBeGreaterThan(0);
+
+    input.detach();
+    expect(fakeWindow.listenerCount()).toBe(0);
+  });
+
+  it('does not cancel the gesture when the pointer leaves the container', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-leave'),
+      now: () => now
+    });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mouseleave', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    input.detach();
+  });
+
   it('removes every listener on detach', () => {
     const host = createFakeHost();
     const container = createFakeContainer();
@@ -74,7 +130,7 @@ describe('PointerInput', () => {
 
     input.attach(host);
     expect(input.enabled).toBe(true);
-    expect(container.listenerCount()).toBe(6);
+    expect(container.listenerCount()).toBe(5);
 
     input.detach();
     expect(input.enabled).toBe(false);
