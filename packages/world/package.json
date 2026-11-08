@@ -1,0 +1,20 @@
+{
+  "name": "@dice/world",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Live simulation runtime: composes physics, rendering, dice, enclosures, table visuals, and lighting into one headless-capable world.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*",
+    "@dice/dice": "*",
+    "@dice/enclosures": "*",
+    "@dice/physics": "*",
+    "@dice/rendering": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}
