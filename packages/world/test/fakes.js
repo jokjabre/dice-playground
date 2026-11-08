@@ -87,6 +87,10 @@ export function createFakeRenderer() {
       calls.camera = settings;
     },
 
+    setLight(settings) {
+      calls.light = settings;
+    },
+
     resetCamera() {
       calls.cameraReset = true;
     },

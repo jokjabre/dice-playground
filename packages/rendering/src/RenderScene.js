@@ -288,6 +288,25 @@ export class RenderScene {
   }
 
   /**
+   * Move the spotlight. Components are multiples of the scene's largest
+   * dimension, so the look survives resizes.
+   *
+   * @param {{ position?: { x?: number, y?: number, z?: number }|null }} [settings]
+   * @returns {void}
+   */
+  setLight(settings = {}) {
+    this.#assertActive();
+    if (settings && 'position' in settings) {
+      this.#lighting.setPosition(settings.position ?? null);
+    }
+  }
+
+  /** @returns {{ x: number, y: number, z: number }} */
+  get lightPosition() {
+    return this.#lighting.position;
+  }
+
+  /**
    * @param {ViewportMetrics} metrics
    * @returns {void}
    */

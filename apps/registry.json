@@ -6,7 +6,7 @@
     "description": "Directory of sandbox, demos, and games built on the dice engine.",
     "path": "apps/landing",
     "url": "",
-    "status": "planned"
+    "status": "live"
   },
   {
     "id": "sandbox",
@@ -24,7 +24,7 @@
     "description": "Box, sphere, and cylinder physics showcase.",
     "path": "apps/demos/enclosure-gallery",
     "url": "apps/demos/enclosure-gallery/",
-    "status": "planned"
+    "status": "live"
   },
   {
     "id": "physics-lab",

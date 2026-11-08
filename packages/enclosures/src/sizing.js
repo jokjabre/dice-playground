@@ -33,10 +33,23 @@ export function computeDieRadius(metrics = {}) {
 }
 
 /**
+ * Normalize an enclosure scale option. Non-positive or non-finite values fall
+ * back to 1 (the default/initial size).
+ *
+ * @param {unknown} scale
+ * @returns {number}
+ */
+export function normalizeEnclosureScale(scale) {
+  return typeof scale === 'number' && Number.isFinite(scale) && scale > 0
+    ? scale
+    : 1;
+}
+
+/**
  * Half extents and ceiling height for the rectangular tray.
  *
  * @param {MetricsLike} [metrics]
- * @param {{ margin?: number, ceilingHeight?: number }} [options]
+ * @param {{ margin?: number, ceilingHeight?: number, scale?: number }} [options]
  * @returns {BoxBounds}
  */
 export function computeBoxBounds(metrics = {}, options = {}) {
@@ -44,41 +57,50 @@ export function computeBoxBounds(metrics = {}, options = {}) {
   const height = metrics.sceneHeight ?? 300;
   const margin = options.margin ?? 0.93;
   const ceilingHeight = options.ceilingHeight ?? 2700;
+  const scale = normalizeEnclosureScale(options.scale);
 
   return {
-    halfWidth: width * margin,
-    halfHeight: height * margin,
-    ceilingHeight,
+    halfWidth: width * margin * scale,
+    halfHeight: height * margin * scale,
+    ceilingHeight: ceilingHeight * scale,
     margin
   };
 }
 
 /**
  * Radius for the spherical enclosure, proportionate to the playing field.
+ * The scale multiplier applies to the default radius; it does not override an
+ * explicitly supplied radius.
  *
  * @param {MetricsLike} [metrics]
+ * @param {{ scale?: number }} [options]
  * @returns {number}
  */
-export function computeSphereRadius(metrics = {}) {
+export function computeSphereRadius(metrics = {}, options = {}) {
   const width = metrics.sceneWidth ?? 500;
   const height = metrics.sceneHeight ?? 300;
   const minDimension = Math.min(width, height);
-  return Math.max(400, Math.min(1800, minDimension * 1.35));
+  const base = Math.max(400, Math.min(1800, minDimension * 1.5));
+  return base * normalizeEnclosureScale(options.scale);
 }
 
 /**
- * Radius and height for the cylindrical enclosure.
+ * Radius and height for the cylindrical enclosure. The scale multiplier
+ * applies to the default dimensions; it does not override explicitly supplied
+ * values.
  *
  * @param {MetricsLike} [metrics]
+ * @param {{ scale?: number }} [options]
  * @returns {{ radius: number, height: number }}
  */
-export function computeCylinderSize(metrics = {}) {
+export function computeCylinderSize(metrics = {}, options = {}) {
   const width = metrics.sceneWidth ?? 500;
   const height = metrics.sceneHeight ?? 300;
   const minDimension = Math.min(width, height);
+  const scale = normalizeEnclosureScale(options.scale);
 
   return {
-    radius: Math.max(200, Math.min(900, minDimension * 0.45)),
-    height: Math.max(600, Math.min(1600, minDimension * 1.4))
+    radius: Math.max(200, Math.min(1800, minDimension * 0.9)) * scale,
+    height: Math.max(600, Math.min(3200, minDimension * 1.8)) * scale
   };
 }

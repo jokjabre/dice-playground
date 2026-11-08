@@ -124,7 +124,13 @@ module.exports = {
       severity: 'error',
       comment: 'Apps import public package entries, never another package src file.',
       from: { path: '^apps/' },
-      to: { path: '^packages/[^/]+/src/' }
+      to: {
+        path: '^packages/[^/]+/src/',
+        // Public entries resolve to src/index.js; anything deeper is a
+        // deep import. Documented subpaths (for example @dice/ui/styles/*)
+        // resolve under src/styles/ and stay allowed.
+        pathNot: '^packages/[^/]+/src/(index\\.js|styles/)'
+      }
     },
     {
       name: 'no-circular',

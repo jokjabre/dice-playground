@@ -121,6 +121,29 @@ describe('RenderScene', () => {
     expect(scene.camera.position.z).toBe(1000);
   });
 
+  it('moves the spotlight in scene-relative units', () => {
+    const { scene } = createScene();
+    scene.resize(metrics);
+
+    const spot = scene.scene.children.find(
+      (/** @type {any} */ child) => child.kind === 'spot'
+    );
+    expect(spot.position).toMatchObject({ x: -250, y: 250, z: 1000 });
+
+    scene.setLight({ position: { x: 1, y: 0, z: 3 } });
+    expect(spot.position).toMatchObject({ x: 500, y: 0, z: 1500 });
+    expect(scene.lightPosition).toEqual({ x: 1, y: 0, z: 3 });
+
+    // A later resize keeps the configured direction/size, scaled to the new
+    // scene dimensions.
+    scene.resize({
+      ...metrics,
+      sceneWidth: 1000,
+      sceneHeight: 600
+    });
+    expect(spot.position).toMatchObject({ x: 1000, y: 0, z: 3000 });
+  });
+
   it('applies and resets camera settings', () => {
     const { scene } = createScene();
     scene.resize(metrics);

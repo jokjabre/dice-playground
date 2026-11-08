@@ -104,6 +104,8 @@ describe('box enclosure', () => {
 });
 
 describe('sphere enclosure', () => {
+  // The sphere sits on the shared desk: its center is one radius above
+  // z=0, so containment is measured from (0, 0, radius).
   it('contains a falling die for a fixed number of headless steps', () => {
     const physics = createFakePhysicsWorld();
     const enclosure = new SphereEnclosure({
@@ -113,6 +115,7 @@ describe('sphere enclosure', () => {
     });
 
     enclosure.createPhysics(physics, metrics);
+    expect(enclosure.center).toEqual({ x: 0, y: 0, z: 400 });
 
     const die = createDie(physics, { x: 0, y: 0, z: 300 });
 
@@ -121,9 +124,16 @@ describe('sphere enclosure', () => {
     }
 
     const position = die.getPosition();
-    const distance = Math.hypot(position.x, position.y, position.z);
+    const distance = Math.hypot(
+      position.x,
+      position.y,
+      position.z - enclosure.center.z
+    );
 
     expect(distance).toBeLessThanOrEqual(358 + 1e-6);
+    // The die rests near the bottom of the ball, on the desk level.
+    expect(position.z).toBeGreaterThanOrEqual(0);
+    expect(position.z).toBeLessThan(enclosure.center.z);
 
     enclosure.dispose();
   });
@@ -138,9 +148,11 @@ describe('sphere enclosure', () => {
 
     enclosure.createPhysics(physics, metrics);
 
+    // Start outside the containment radius (400 > 358 from the center at
+    // z=400) moving outward, so the post-step clamp must engage.
     const die = createDie(
       physics,
-      { x: 0, y: 0, z: 400 },
+      { x: 0, y: 0, z: 800 },
       { x: 0, y: 0, z: 1000 }
     );
 
@@ -149,13 +161,33 @@ describe('sphere enclosure', () => {
     callbacks[0](physics, 1 / 60);
 
     const position = die.getPosition();
-    const distance = Math.hypot(position.x, position.y, position.z);
+    const distance = Math.hypot(
+      position.x,
+      position.y,
+      position.z - enclosure.center.z
+    );
 
     expect(distance).toBeCloseTo(358, 6);
+    expect(position.z).toBeCloseTo(758, 6);
     expect(die.getVelocity().z).toBeLessThan(0);
 
     enclosure.dispose();
     expect(physics.postSteps.size).toBe(0);
+  });
+
+  it('respects an explicitly supplied center', () => {
+    const physics = createFakePhysicsWorld();
+    const enclosure = new SphereEnclosure({
+      radius: 400,
+      dieRadius: 40,
+      segments: 20,
+      center: { x: 10, y: 20, z: 30 }
+    });
+
+    enclosure.createPhysics(physics, metrics);
+    expect(enclosure.center).toEqual({ x: 10, y: 20, z: 30 });
+
+    enclosure.dispose();
   });
 });
 
@@ -179,7 +211,7 @@ describe('cylinder enclosure', () => {
     const position = die.getPosition();
     const radialDistance = Math.hypot(position.x, position.y);
 
-    expect(radialDistance).toBeLessThanOrEqual(200);
+    expect(radialDistance).toBeLessThanOrEqual(270);
     expect(position.z).toBeGreaterThanOrEqual(0);
 
     enclosure.dispose();
@@ -201,11 +233,11 @@ describe('cylinder enclosure', () => {
       .find((/** @type {any} */ body) => body.id.endsWith('wall-0'));
     expect(
       Math.hypot(wallBefore.position.x, wallBefore.position.y)
-    ).toBeCloseTo(200, 6);
+    ).toBeCloseTo(270, 6);
     expect(wallBefore.position.z).toBeCloseTo(300, 6);
     expect(renderScene.visuals[0].descriptor).toMatchObject({
       type: 'cylinder-shell',
-      radius: 200,
+      radius: 270,
       height: 600
     });
     expect(renderScene.visuals[0].position.z).toBeCloseTo(300, 6);
@@ -216,22 +248,57 @@ describe('cylinder enclosure', () => {
       .getBodies()
       .find((/** @type {any} */ body) => body.id.endsWith('wall-0'));
     expect(Math.hypot(wallAfter.position.x, wallAfter.position.y)).toBeCloseTo(
-      225,
+      450,
       6
     );
-    expect(wallAfter.position.z).toBeCloseTo(350, 6);
+    expect(wallAfter.position.z).toBeCloseTo(450, 6);
     expect(physics.getBodies()).toHaveLength(17);
     expect(renderScene.visuals).toHaveLength(1);
     expect(renderScene.visuals[0].descriptor).toMatchObject({
       type: 'cylinder-shell',
-      radius: 225,
-      height: 700
+      radius: 450,
+      height: 900
     });
-    expect(renderScene.visuals[0].position.z).toBeCloseTo(350, 6);
+    expect(renderScene.visuals[0].position.z).toBeCloseTo(450, 6);
 
     enclosure.dispose();
     expect(physics.getBodies()).toHaveLength(0);
     expect(renderScene.visuals).toHaveLength(0);
+  });
+});
+
+describe('enclosure scale', () => {
+  it('scales cylinder defaults but keeps explicit dimensions', () => {
+    const physics = createFakePhysicsWorld();
+    const scaled = new CylinderEnclosure({ scale: 1.5 });
+    scaled.createPhysics(physics, metrics);
+    expect(scaled.radius).toBeCloseTo(405, 10);
+    expect(scaled.height).toBeCloseTo(900, 10);
+    scaled.dispose();
+
+    const fixed = new CylinderEnclosure({
+      scale: 1.5,
+      radius: 100,
+      height: 250
+    });
+    fixed.createPhysics(physics, metrics);
+    expect(fixed.radius).toBe(100);
+    expect(fixed.height).toBe(250);
+    fixed.dispose();
+  });
+
+  it('scales sphere defaults but keeps an explicit radius', () => {
+    const physics = createFakePhysicsWorld();
+    const scaled = new SphereEnclosure({ scale: 0.5, segments: 20 });
+    scaled.createPhysics(physics, metrics);
+    expect(scaled.radius).toBeCloseTo(225, 10);
+
+    const fixed = new SphereEnclosure({ scale: 0.5, radius: 100, segments: 20 });
+    fixed.createPhysics(physics, metrics);
+    expect(fixed.radius).toBe(100);
+
+    fixed.dispose();
+    scaled.dispose();
   });
 });
 

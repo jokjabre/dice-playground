@@ -7,7 +7,8 @@ export {
   computeDieRadius,
   computeBoxBounds,
   computeSphereRadius,
-  computeCylinderSize
+  computeCylinderSize,
+  normalizeEnclosureScale
 } from './sizing.js';
 
 export {

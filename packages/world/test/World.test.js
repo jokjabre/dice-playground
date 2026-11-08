@@ -261,6 +261,91 @@ describe('World enclosure, resize, and disposal', () => {
     world.dispose();
   });
 
+  it('sizes the table to cover the active enclosure footprint', async () => {
+    const renderer = createFakeRenderer();
+    const container = createFakeContainer();
+    const world = new World({
+      rng: createSeededRandom('table-footprint'),
+      container,
+      rendererFactory: async () => renderer
+    });
+    await world.init({ ...metrics });
+
+    const initial = renderer.calls.createTableVisual.at(-1);
+    // The box tray is wider than twice the scene width, so the floor grows
+    // with it instead of leaving the tray walls off the table.
+    expect(initial.width).toBeGreaterThan(metrics.sceneWidth * 2);
+    expect(initial.height).toBeGreaterThan(metrics.sceneHeight * 2);
+
+    world.setEnclosure('sphere');
+    const sphere = world.enclosure;
+    const sphereTable = renderer.calls.createTableVisual.at(-1);
+    expect(sphereTable.width).toBeGreaterThanOrEqual(sphere.radius * 2);
+    expect(sphereTable.height).toBeGreaterThanOrEqual(sphere.radius * 2);
+
+    world.setEnclosure('cylinder');
+    const cylinder = world.enclosure;
+    const cylinderTable = renderer.calls.createTableVisual.at(-1);
+    expect(cylinderTable.width).toBeGreaterThanOrEqual(cylinder.radius * 2);
+    expect(cylinderTable.height).toBeGreaterThanOrEqual(cylinder.radius * 2);
+
+    world.dispose();
+  });
+
+  it('resizes the active enclosure relative to its default size', async () => {
+    const renderer = createFakeRenderer();
+    const container = createFakeContainer();
+    const world = new World({
+      rng: createSeededRandom('enclosure-scale'),
+      container,
+      rendererFactory: async () => renderer
+    });
+    await world.init({ ...metrics });
+    world.setEnclosure('sphere');
+
+    const defaultRadius = world.enclosure.radius;
+    expect(defaultRadius).toBeCloseTo(450, 10);
+    world.spawnDice({ dice: 1, vectors: dropVectors(1) });
+    expect(world.getDiceIds()).toHaveLength(1);
+
+    world.setEnclosureScale(1.5);
+    // Scaling rebuilds boundaries, so in-flight dice are cleared.
+    expect(world.getDiceIds()).toHaveLength(0);
+    expect(world.enclosure.radius).toBeCloseTo(defaultRadius * 1.5, 10);
+    expect(world.getConfig().enclosureOptions.scale).toBe(1.5);
+
+    const table = renderer.calls.createTableVisual.at(-1);
+    expect(table.width).toBeGreaterThanOrEqual(world.enclosure.radius * 2);
+
+    // The active enclosure switch keeps the selected scale.
+    world.setEnclosure('cylinder');
+    expect(world.enclosure.radius).toBeCloseTo(270 * 1.5, 10);
+
+    // Invalid values fall back to the default size.
+    world.setEnclosureScale(0);
+    expect(world.enclosure.radius).toBeCloseTo(270, 10);
+
+    world.dispose();
+  });
+
+  it('forwards lighting changes to the render scene', async () => {
+    const renderer = createFakeRenderer();
+    const container = createFakeContainer();
+    const world = new World({
+      rng: createSeededRandom('light'),
+      container,
+      rendererFactory: async () => renderer
+    });
+    await world.init({ ...metrics });
+
+    world.setLight({ position: { x: 1, y: 2, z: 3 } });
+    expect(renderer.calls.light).toEqual({
+      position: { x: 1, y: 2, z: 3 }
+    });
+
+    world.dispose();
+  });
+
   it('removes bodies, visuals, and listeners on dispose, idempotently', async () => {
     const renderer = createFakeRenderer();
     const container = createFakeContainer();
@@ -308,6 +393,7 @@ describe('World enclosure, resize, and disposal', () => {
     const container = createFakeContainer();
     const world = new World({
       rng: createSeededRandom('config'),
+      config: { camera: { distance: 1, near: 1, far: 0 } },
       container,
       rendererFactory: async () => renderer
     });
@@ -325,14 +411,31 @@ describe('World enclosure, resize, and disposal', () => {
 
     world.setCamera({ distance: 2, near: 5, far: 2000 });
     expect(renderer.calls.camera.distance).toBe(2);
+    expect(world.getConfig().camera.distance).toBe(2);
     world.resetCamera();
     expect(renderer.calls.cameraReset).toBe(true);
+    expect(world.getConfig().camera.distance).toBe(1);
 
     world.dispose();
   });
 });
 
 describe('World custom enclosures, picking, and reset', () => {
+  it('keeps getConfig() in sync when the enclosure is switched', async () => {
+    const world = await createHeadlessWorld();
+    expect(world.getConfig().enclosure).toBe('box');
+
+    world.setEnclosure('sphere');
+    expect(world.enclosureId).toBe('sphere');
+    expect(world.getConfig().enclosure).toBe('sphere');
+
+    world.setEnclosure('cylinder');
+    expect(world.enclosureId).toBe('cylinder');
+    expect(world.getConfig().enclosure).toBe('cylinder');
+
+    world.dispose();
+  });
+
   it('supports registerEnclosure and resetDice', async () => {
     const world = await createHeadlessWorld();
     const fakeEnclosure = {
@@ -550,6 +653,27 @@ describe('World selection, roll, and imports', () => {
 
     world.reset();
     expect(world.getDiceIds()).toHaveLength(0);
+
+    world.dispose();
+  });
+
+  it('uses a renderer factory result as-is when it exposes the renderer API', async () => {
+    const renderer = createFakeRenderer();
+    // The real RenderScene exposes a `scene` getter for the opaque backend
+    // handle. The world must prefer the factory result itself over that
+    // handle, otherwise a browser engine can never start.
+    Object.defineProperty(renderer, 'scene', {
+      get: () => ({ opaque: true })
+    });
+    const world = new World({
+      rng: createSeededRandom('renderer-scene'),
+      container: createFakeContainer(),
+      rendererFactory: async () => renderer
+    });
+
+    await world.init({ ...metrics });
+    world.spawnDice({ dice: 1, vectors: dropVectors(1) });
+    expect(renderer.calls.createDiceVisual).toHaveLength(1);
 
     world.dispose();
   });

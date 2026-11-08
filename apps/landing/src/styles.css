@@ -1,0 +1,124 @@
+:root {
+  --landing-bg: #f1f5f9;
+  --landing-surface: #ffffff;
+  --landing-text: #0f172a;
+  --landing-text-muted: #334155;
+  --landing-border: rgba(15, 23, 42, 0.18);
+  --landing-accent: #0284c7;
+  --landing-focus: #0284c7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --landing-bg: #0b0f19;
+    --landing-surface: rgba(15, 23, 42, 0.85);
+    --landing-text: #ffffff;
+    --landing-text-muted: #e2e8f0;
+    --landing-border: rgba(255, 255, 255, 0.15);
+    --landing-accent: #38bdf8;
+    --landing-focus: #38bdf8;
+    color-scheme: dark;
+  }
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--landing-bg);
+  color: var(--landing-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 20px 48px;
+  box-sizing: border-box;
+}
+
+.landing-header h1 {
+  margin: 0 0 8px;
+  font-size: 32px;
+  letter-spacing: -0.01em;
+}
+
+.landing-tagline {
+  margin: 0 0 24px;
+  color: var(--landing-text-muted);
+  font-size: 16px;
+}
+
+.landing-section h2 {
+  font-size: 18px;
+  margin: 28px 0 12px;
+}
+
+.landing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--landing-border);
+  border-radius: 12px;
+  background: var(--landing-surface);
+  color: var(--landing-text);
+  text-decoration: none;
+}
+
+a.landing-card:hover,
+a.landing-card:focus-visible {
+  border-color: var(--landing-accent);
+  outline: 2px solid var(--landing-focus);
+  outline-offset: 2px;
+}
+
+.landing-card-disabled {
+  opacity: 0.65;
+}
+
+.landing-card-title {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.landing-card-description {
+  color: var(--landing-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.landing-badge {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--landing-border);
+}
+
+.landing-badge-live {
+  color: var(--landing-accent);
+  border-color: var(--landing-accent);
+}
+
+.landing-footer {
+  margin-top: 40px;
+  color: var(--landing-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.landing-card:hover {
+    outline: none;
+  }
+}

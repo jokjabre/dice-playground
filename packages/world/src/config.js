@@ -138,6 +138,7 @@ export function configFromContent(content) {
     const enclosureOptions = {};
     if (enclosure.margin !== undefined) enclosureOptions.margin = enclosure.margin;
     if (enclosure.ceiling !== undefined) enclosureOptions.ceiling = enclosure.ceiling;
+    if (enclosure.scale !== undefined) enclosureOptions.scale = enclosure.scale;
     if (Object.keys(enclosureOptions).length > 0) overrides.enclosureOptions = enclosureOptions;
   }
 

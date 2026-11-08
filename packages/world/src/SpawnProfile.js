@@ -115,10 +115,14 @@ export function spawnPosition(direction, rng, metrics, profile) {
   }
 
   const radius = profile?.radius || 700;
+  // The sphere sits on the desk (center one radius above z=0), so its
+  // upper-inner spawn region floats above the ball center. The open
+  // cylinder grows from the desk, so spawns stay just above the bottom.
+  const baseZ = mode === 'sphere' ? radius : 0;
   return {
     x: (nextRandom(rng) * 2 - 1) * radius * 0.28,
     y: (nextRandom(rng) * 2 - 1) * radius * 0.28,
-    z: radius * 0.4 + nextRandom(rng) * radius * 0.25
+    z: baseZ + radius * 0.4 + nextRandom(rng) * radius * 0.25
   };
 }
 

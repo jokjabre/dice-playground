@@ -81,6 +81,12 @@ export function createDiceMaterialSet({ style, labels }) {
       value,
       material: {
         ...base,
+        // The label texture already carries the body color as its
+        // background. Three multiplies material.color with the texture, so
+        // reusing bodyColor here would square it (#202020 -> #040404) and
+        // make the die faces nearly black. Keep the tint white so the
+        // authored texture colors show through.
+        color: '#ffffff',
         label: {
           text: String(value),
           color: style.labelColor,

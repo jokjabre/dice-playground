@@ -3,7 +3,8 @@ import { createDiceRegistry } from '@dice/dice';
 import {
   createEnclosure,
   getEnclosureDefinition,
-  computeDieRadius
+  computeDieRadius,
+  normalizeEnclosureScale
 } from '@dice/enclosures';
 
 import {
@@ -121,6 +122,9 @@ export class World {
   /** @type {{ x: number, y: number, z: number }} */
   #cameraSettings = { x: 0, y: 0, z: 0 };
 
+  /** @type {Record<string, any>} */
+  #defaultCamera = {};
+
   /** @type {Viewport} */
   #viewport;
 
@@ -192,6 +196,7 @@ export class World {
       ...contentConfig,
       ...(options.config ?? {})
     });
+    this.#defaultCamera = { ...(this.#config.camera ?? {}) };
 
     if (options.enclosureOptions) {
       this.#enclosureOptions = { ...options.enclosureOptions };
@@ -297,14 +302,23 @@ export class World {
         config: this.#config.render,
         metrics
       });
+      // A RenderScene instance is used as-is: its `scene` getter returns the
+      // opaque backend handle, so unwrap only objects that do not already
+      // expose the renderer API.
       this.#renderer =
-        rendererResult?.renderer ?? rendererResult?.scene ?? rendererResult ?? null;
+        rendererResult && typeof rendererResult.createDiceVisual === 'function'
+          ? rendererResult
+          : (rendererResult?.renderer ?? rendererResult?.scene ?? rendererResult ?? null);
       if (this.#renderer && typeof this.#renderer.createDiceVisual !== 'function') {
         throw new TypeError('rendererFactory must return a render scene.');
       }
     } else {
       this.#renderer = null;
     }
+
+    // Enclosure on the live world, then the table so the floor can cover the
+    // enclosure footprint (box tray, sphere shell, cylinder shell).
+    this.#buildEnclosure(this.#enclosureId, metrics);
 
     // Table visual comes from content/config; lighting lives in the render scene.
     this.#tableVisual = new TableVisual({
@@ -314,7 +328,7 @@ export class World {
         receiveShadow: this.#config.table?.shadows
       }
     });
-    this.#tableVisual.create(metrics);
+    this.#tableVisual.create(metrics, this.#enclosureFootprint(this.#enclosure));
 
     if (this.#renderer && this.#config.camera?.distance !== undefined) {
       this.#renderer.setCamera?.({
@@ -323,9 +337,6 @@ export class World {
         far: this.#config.camera.far
       });
     }
-
-    // Enclosure on the live world.
-    this.#buildEnclosure(this.#enclosureId, metrics);
 
     // Dice factory needs metrics, so it comes after the viewport is set.
     this.#diceFactory = new DiceFactory({
@@ -367,7 +378,53 @@ export class World {
     }
     this.#enclosure = enclosure;
     this.#enclosureId = id;
+    // Keep the public config in sync so consumers that read getConfig()
+    // observe the active enclosure after a switch.
+    this.#config.enclosure = id;
     return enclosure;
+  }
+
+  /**
+   * Footprint the floor must cover so the table always reads as the surface
+   * the active enclosure rests on. The built-in enclosures expose either
+   * `bounds` (box) or `radius` (sphere/cylinder); custom enclosures without
+   * either fall back to the scene-sized table.
+   *
+   * @param {any|null} enclosure
+   * @returns {{ width: number, height: number }|null}
+   */
+  #enclosureFootprint(enclosure) {
+    if (!enclosure) return null;
+
+    const margin = 1.15;
+
+    if (
+      enclosure.bounds &&
+      typeof enclosure.bounds.halfWidth === 'number' &&
+      typeof enclosure.bounds.halfHeight === 'number'
+    ) {
+      return {
+        width: enclosure.bounds.halfWidth * 2 * margin,
+        height: enclosure.bounds.halfHeight * 2 * margin
+      };
+    }
+
+    if (typeof enclosure.radius === 'number' && enclosure.radius > 0) {
+      const side = enclosure.radius * 2 * margin;
+      return { width: side, height: side };
+    }
+
+    return null;
+  }
+
+  /**
+   * Rebuild the table against the current enclosure footprint.
+   *
+   * @param {ViewportMetrics} metrics
+   * @returns {void}
+   */
+  #syncTable(metrics) {
+    this.#tableVisual?.update(metrics, this.#enclosureFootprint(this.#enclosure));
   }
 
   /**
@@ -466,8 +523,8 @@ export class World {
     const metrics = this.#viewport.update(viewport);
 
     this.#renderer?.resize?.(metrics);
-    this.#tableVisual?.update(metrics);
     this.#enclosure?.update(metrics);
+    this.#syncTable(metrics);
     this.#diceFactory?.clearCache();
     this.#updateSpawnProfile();
   }
@@ -490,7 +547,15 @@ export class World {
    */
   resetCamera() {
     this.#assertActive();
+    // Restore the content camera values so the public config and the
+    // renderer agree after a reset.
+    this.#config.camera = { ...this.#defaultCamera };
+    this.#cameraSettings.x =
+      this.#defaultCamera.distance ?? this.#cameraSettings.x;
     this.#renderer?.resetCamera?.();
+    if (Object.keys(this.#config.camera).length > 0) {
+      this.#renderer?.setCamera?.({ ...this.#config.camera });
+    }
   }
 
   /**
@@ -528,10 +593,68 @@ export class World {
     }
 
     this.#buildEnclosure(id, this.#viewport.getMetrics());
+    this.#syncTable(this.#viewport.getMetrics());
     this.#updateSpawnProfile();
     this.#rollState.reset();
 
     this.#events?.emit?.(EVENTS.ENCLOSURE_CHANGE, { type: id, preset: id });
+  }
+
+  /**
+   * Resize the active built-in enclosure relative to its default size. Explicit
+   * numeric `radius`/`height` enclosure options still win over the scale.
+   * Clears dice and rebuilds the enclosure/table so boundaries match the shell.
+   *
+   * @param {number} scale
+   * @returns {void}
+   */
+  setEnclosureScale(scale) {
+    this.#assertInitialized();
+    const normalized = normalizeEnclosureScale(scale);
+
+    this.#enclosureOptions = {
+      ...this.#enclosureOptions,
+      scale: normalized
+    };
+    this.#config.enclosureOptions = {
+      ...(this.#config.enclosureOptions ?? {}),
+      scale: normalized
+    };
+
+    this.clearDice();
+
+    if (this.#enclosure) {
+      try {
+        this.#enclosure.dispose(this.#physics, this.#renderer);
+      } catch {
+        // Preserve resize semantics even if teardown warns.
+      }
+      this.#enclosure = null;
+    }
+
+    const metrics = this.#viewport.getMetrics();
+    this.#buildEnclosure(this.#enclosureId, metrics);
+    this.#syncTable(metrics);
+    this.#updateSpawnProfile();
+    this.#rollState.reset();
+
+    this.#events?.emit?.(EVENTS.ENCLOSURE_CHANGE, {
+      type: this.#enclosureId,
+      preset: this.#enclosureId,
+      scale: normalized
+    });
+  }
+
+  /**
+   * Update render lighting. Position components are scene-relative multiples
+   * of the largest scene dimension.
+   *
+   * @param {{ position?: { x?: number, y?: number, z?: number }|null }} [settings]
+   * @returns {void}
+   */
+  setLight(settings = {}) {
+    this.#assertActive();
+    this.#renderer?.setLight?.(settings);
   }
 
   /**

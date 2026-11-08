@@ -67,22 +67,30 @@ export class TableVisual {
   /**
    * Create the table visual for the given metrics. Replaces any previous one.
    *
+   * The table defaults to twice the scene dimensions, but it never shrinks
+   * below the active enclosure footprint (plus a margin). Otherwise the floor
+   * can end up smaller than the box tray or the sphere/cylinder shells, which
+   * reads as a floating patch instead of the surface the enclosure sits on.
+   *
    * @param {ViewportMetrics} metrics
+   * @param {{ width: number, height: number }|null} [footprint]
    * @returns {any|null}
    */
-  create(metrics) {
+  create(metrics, footprint = null) {
     this.#metrics = metrics;
     this.disposeVisual();
     if (!this.#renderer) return null;
 
+    const sceneWidth = metrics.sceneWidth * 2;
+    const sceneHeight = metrics.sceneHeight * 2;
     const width =
       typeof this.#descriptor.width === 'number'
         ? this.#descriptor.width
-        : metrics.sceneWidth * 2;
+        : Math.max(sceneWidth, footprint?.width ?? 0);
     const height =
       typeof this.#descriptor.height === 'number'
         ? this.#descriptor.height
-        : metrics.sceneHeight * 2;
+        : Math.max(sceneHeight, footprint?.height ?? 0);
 
     if (!(width > 0) || !(height > 0)) return null;
 
@@ -102,13 +110,15 @@ export class TableVisual {
   }
 
   /**
-   * Rebuild the table visual from new metrics.
+   * Rebuild the table visual from new metrics and an optional enclosure
+   * footprint.
    *
    * @param {ViewportMetrics} metrics
+   * @param {{ width: number, height: number }|null} [footprint]
    * @returns {any|null}
    */
-  update(metrics) {
-    return this.create(metrics);
+  update(metrics, footprint = null) {
+    return this.create(metrics, footprint);
   }
 
   /**

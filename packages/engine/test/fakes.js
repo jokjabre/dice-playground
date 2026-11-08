@@ -58,6 +58,9 @@ export function createFakeRenderer() {
     },
     setCamera() {},
     resetCamera() {},
+    setLight(settings) {
+      calls.light = settings;
+    },
     resize(metrics) {
       calls.resize.push({ ...metrics });
     },

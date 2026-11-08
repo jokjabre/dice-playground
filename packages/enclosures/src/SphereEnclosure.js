@@ -1,7 +1,11 @@
 import { vec3 } from '@dice/core';
 
 import { Enclosure } from './Enclosure.js';
-import { computeDieRadius, computeSphereRadius } from './sizing.js';
+import {
+  computeDieRadius,
+  computeSphereRadius,
+  normalizeEnclosureScale
+} from './sizing.js';
 
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
@@ -74,12 +78,21 @@ export class SphereEnclosure extends Enclosure {
     this.fixedRadius = typeof options.radius === 'number' ? options.radius : null;
     this.fixedDieRadius =
       typeof options.dieRadius === 'number' ? options.dieRadius : null;
+    this.scale = normalizeEnclosureScale(options.scale);
     this.segments = Math.max(20, options.segments ?? 128);
-    this.center = {
-      x: options.center?.x ?? 0,
-      y: options.center?.y ?? 0,
-      z: options.center?.z ?? 0
-    };
+    // An explicitly supplied center is respected as-is. By default the
+    // sphere sits on the shared desk: its center is one radius above z=0,
+    // so the table plane does not slice through the middle of the ball.
+    this.explicitCenter = options.center
+      ? {
+          x: options.center.x ?? 0,
+          y: options.center.y ?? 0,
+          z: options.center.z ?? 0
+        }
+      : null;
+    this.center = this.explicitCenter
+      ? { ...this.explicitCenter }
+      : { x: 0, y: 0, z: 0 };
     this.showMesh = options.showMesh !== false;
     this.meshOpacity = options.meshOpacity ?? 0.1;
     this.color = options.color ?? 0x88ccff;
@@ -187,8 +200,13 @@ export class SphereEnclosure extends Enclosure {
    * @param {import('./Enclosure.js').ViewportMetrics} metrics
    */
   #applyMetrics(metrics) {
-    this.radius = this.fixedRadius ?? computeSphereRadius(metrics);
+    this.radius =
+      this.fixedRadius ?? computeSphereRadius(metrics, { scale: this.scale });
     this.dieRadius = this.fixedDieRadius ?? computeDieRadius(metrics);
+
+    if (!this.explicitCenter) {
+      this.center = { x: 0, y: 0, z: this.radius };
+    }
 
     if (!this.directions) {
       this.directions = sphereDirections(this.segments);

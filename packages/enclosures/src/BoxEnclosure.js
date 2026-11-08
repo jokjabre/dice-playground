@@ -1,5 +1,5 @@
 import { Enclosure } from './Enclosure.js';
-import { computeBoxBounds } from './sizing.js';
+import { computeBoxBounds, normalizeEnclosureScale } from './sizing.js';
 
 /**
  * Rectangular tray: a floor plane, four inward-facing walls, an optional
@@ -15,6 +15,7 @@ export class BoxEnclosure extends Enclosure {
 
     this.margin = options.margin ?? 0.93;
     this.ceilingHeight = options.ceilingHeight ?? 2700;
+    this.scale = normalizeEnclosureScale(options.scale);
     this.hasCeiling = options.ceiling ?? options.hasCeiling ?? true;
     this.showOutline = options.outline ?? options.showOutline ?? true;
     this.color = options.color ?? 0xffffff;
@@ -34,7 +35,8 @@ export class BoxEnclosure extends Enclosure {
   buildPhysics(physicsWorld, metrics) {
     const bounds = computeBoxBounds(metrics, {
       margin: this.margin,
-      ceilingHeight: this.ceilingHeight
+      ceilingHeight: this.ceilingHeight,
+      scale: this.scale
     });
     this.bounds = bounds;
 
@@ -86,7 +88,8 @@ export class BoxEnclosure extends Enclosure {
   updatePhysics(metrics) {
     const bounds = computeBoxBounds(metrics, {
       margin: this.margin,
-      ceilingHeight: this.ceilingHeight
+      ceilingHeight: this.ceilingHeight,
+      scale: this.scale
     });
     this.bounds = bounds;
 
@@ -116,7 +119,8 @@ export class BoxEnclosure extends Enclosure {
 
     const bounds = computeBoxBounds(metrics, {
       margin: this.margin,
-      ceilingHeight: this.ceilingHeight
+      ceilingHeight: this.ceilingHeight,
+      scale: this.scale
     });
     this.bounds = bounds;
 

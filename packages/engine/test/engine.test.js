@@ -219,6 +219,13 @@ describe('lifecycle and configuration', () => {
     expect(engine.world.enclosureId).toBe('sphere');
     engine.setEnclosure('box');
 
+    engine.setEnclosure('sphere');
+    engine.setEnclosureScale(1.5);
+    // Headless test metrics are 1000x600, so the sphere default radius is 900.
+    expect(engine.world.enclosure.radius).toBeCloseTo(1350, 10);
+    engine.setEnclosure('box');
+    engine.setEnclosureScale(1);
+
     engine.setCamera({ distance: 2, near: 1, far: 0 });
     engine.resetCamera();
 
@@ -287,11 +294,12 @@ describe('lifecycle and configuration', () => {
 describe('browser mode', () => {
   it('uses BrowserScheduler when a container is present', async () => {
     const container = { clientWidth: 800, clientHeight: 600, children: [] };
+    const renderer = createFakeRenderer();
     const engine = await createDiceEngine({
       container,
       headless: false,
       seed: 'browser-test',
-      rendererFactory: async () => createFakeRenderer()
+      rendererFactory: async () => renderer
     });
 
     expect(engine.scheduler).toBeInstanceOf(BrowserScheduler);
@@ -300,6 +308,11 @@ describe('browser mode', () => {
     // Resize reads the container size.
     const used = engine.resize();
     expect(used.containerWidth).toBe(800);
+
+    engine.setLight({ position: { x: 1, y: 0.5, z: 2 } });
+    expect(renderer.calls.light).toEqual({
+      position: { x: 1, y: 0.5, z: 2 }
+    });
 
     engine.destroy();
   });

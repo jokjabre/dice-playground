@@ -11,6 +11,19 @@ import { createRenderConfig } from '../config/defaults.js';
  */
 
 /**
+ * Default spotlight position, expressed as multiples of the scene's largest
+ * dimension. Keeping it relative means resizing or zooming does not change the
+ * lighting direction.
+ *
+ * @type {Readonly<{ x: number, y: number, z: number }>}
+ */
+export const DEFAULT_LIGHT_POSITION = Object.freeze({
+  x: -0.5,
+  y: 0.5,
+  z: 2
+});
+
+/**
  * Config-driven ambient + spot lighting rig. All Three objects stay inside the
  * backend; this class only forwards opaque handles.
  */
@@ -29,6 +42,12 @@ export class LightingRig {
 
   /** @type {any} */
   #scene = null;
+
+  /** @type {ViewportMetrics|null} */
+  #metrics = null;
+
+  /** @type {{ x: number, y: number, z: number }|null} */
+  #position = null;
 
   /**
    * @param {{ backend: any, config?: Partial<RenderConfig> }} options
@@ -90,16 +109,53 @@ export class LightingRig {
   }
 
   /**
-   * @param {ViewportMetrics} metrics
+   * Move the spotlight. Position components are multiples of the scene's
+   * largest dimension; omitted components keep their current value.
+   *
+   * @param {{ x?: number, y?: number, z?: number }|null} position
+   * @returns {void}
+   */
+  setPosition(position) {
+    if (position === null) {
+      this.#position = null;
+    } else if (position && typeof position === 'object') {
+      const current = this.#position ?? DEFAULT_LIGHT_POSITION;
+      this.#position = {
+        x: Number.isFinite(position.x) ? Number(position.x) : current.x,
+        y: Number.isFinite(position.y) ? Number(position.y) : current.y,
+        z: Number.isFinite(position.z) ? Number(position.z) : current.z
+      };
+    } else {
+      return;
+    }
+
+    this.update(this.#metrics);
+  }
+
+  /**
+   * @returns {{ x: number, y: number, z: number }}
+   */
+  get position() {
+    return { ...(this.#position ?? DEFAULT_LIGHT_POSITION) };
+  }
+
+  /**
+   * @param {ViewportMetrics|null} metrics
    * @returns {void}
    */
   update(metrics) {
     if (!metrics || !this.#spot) return;
+    this.#metrics = metrics;
 
     const maxWidth = Math.max(metrics.sceneWidth || 0, metrics.sceneHeight || 0);
     if (maxWidth === 0) return;
 
-    this.#spot.position.set(-maxWidth / 2, maxWidth / 2, maxWidth * 2);
+    const position = this.#position ?? DEFAULT_LIGHT_POSITION;
+    this.#spot.position.set(
+      position.x * maxWidth,
+      position.y * maxWidth,
+      position.z * maxWidth
+    );
     this.#spot.distance = maxWidth * 5;
     this.#spot.shadowCameraNear = maxWidth / 10;
     this.#spot.shadowCameraFar = maxWidth * 5;

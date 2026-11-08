@@ -32,6 +32,10 @@ describe('createDiceMaterialSet', () => {
     ]);
     expect(materialSet.labels[0]?.material.label?.text).toBe('1');
     expect(materialSet.labels[5]?.material.label?.text).toBe('6');
+    // The texture owns the body color; the material must stay white so the
+    // color is not multiplied by itself (which makes faces nearly black).
+    expect(materialSet.labels[0]?.material.color).toBe('#ffffff');
+    expect(materialSet.labels[0]?.material.label?.backgroundColor).toBe('#202020');
   });
 
   it('rejects an empty label list', () => {

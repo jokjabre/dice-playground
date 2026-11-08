@@ -1,7 +1,10 @@
 export { RenderScene, createRenderScene } from './RenderScene.js';
 
 export { CameraController } from './camera/CameraController.js';
-export { LightingRig } from './lighting/LightingRig.js';
+export {
+  DEFAULT_LIGHT_POSITION,
+  LightingRig
+} from './lighting/LightingRig.js';
 export { RaycastService } from './picking/RaycastService.js';
 
 export {

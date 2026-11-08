@@ -602,6 +602,28 @@ export class DiceEngine {
   }
 
   /**
+   * Resize the active built-in enclosure relative to its default size.
+   *
+   * @param {number} scale
+   * @returns {void}
+   */
+  setEnclosureScale(scale) {
+    this.#assertNotDestroyed();
+    this.#world.setEnclosureScale(scale);
+  }
+
+  /**
+   * Update render lighting.
+   *
+   * @param {{ position?: { x?: number, y?: number, z?: number }|null }} [settings]
+   * @returns {void}
+   */
+  setLight(settings) {
+    this.#assertNotDestroyed();
+    this.#world.setLight(settings ?? {});
+  }
+
+  /**
    * @param {{ distance?: number, near?: number, far?: number }} settings
    * @returns {void}
    */

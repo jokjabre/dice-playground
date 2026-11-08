@@ -1,5 +1,5 @@
 import { Enclosure } from './Enclosure.js';
-import { computeCylinderSize } from './sizing.js';
+import { computeCylinderSize, normalizeEnclosureScale } from './sizing.js';
 
 /**
  * Open cylindrical enclosure: a bottom plane plus inward-facing polygonal wall
@@ -15,6 +15,7 @@ export class CylinderEnclosure extends Enclosure {
 
     this.fixedRadius = typeof options.radius === 'number' ? options.radius : null;
     this.fixedHeight = typeof options.height === 'number' ? options.height : null;
+    this.scale = normalizeEnclosureScale(options.scale);
     this.segments = Math.max(3, options.segments ?? 24);
     this.color = options.color ?? 0xffd9a0;
     this.opacity = options.opacity ?? 0.35;
@@ -113,7 +114,7 @@ export class CylinderEnclosure extends Enclosure {
    * @param {import('./Enclosure.js').ViewportMetrics} metrics
    */
   #applyMetrics(metrics) {
-    const size = computeCylinderSize(metrics);
+    const size = computeCylinderSize(metrics, { scale: this.scale });
     this.radius = this.fixedRadius ?? size.radius;
     this.height = this.fixedHeight ?? size.height;
   }

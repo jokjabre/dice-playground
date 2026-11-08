@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Enclosure gallery: box, sphere, and cylinder dice physics with live switching." />
+    <title>Enclosure Gallery — Dice Playground</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="gallery-header">
+        <h1>Enclosure Gallery</h1>
+        <p class="gallery-caption">
+          Box, sphere, and cylinder physics with live switching. Drag on the stage to throw.
+        </p>
+      </header>
+      <main class="gallery-main">
+        <section
+          id="stage"
+          class="gallery-stage"
+          data-testid="stage"
+          aria-label="3D dice stage. Drag or flick to throw the dice."
+        ></section>
+        <aside class="gallery-panel">
+          <section
+            id="controls-host"
+            class="gallery-controls"
+            aria-label="Gallery controls"
+          ></section>
+          <section
+            id="info-panel"
+            class="gallery-info"
+            data-testid="info-panel"
+            aria-label="Physics and enclosure information"
+          ></section>
+          <p class="gallery-home">
+            <a href="../../../" data-testid="home-link">&larr; All apps</a>
+          </p>
+        </aside>
+      </main>
+      <p id="gallery-error" class="gallery-error" data-testid="fatal-error" hidden></p>
+      <div id="banner-host"></div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

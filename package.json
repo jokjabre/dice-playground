@@ -16,6 +16,8 @@
     "dev": "vite",
     "dev:legacy": "vite --open /legacy/dice/",
     "dev:sandbox": "vite --config apps/sandbox/vite.config.js",
+    "dev:gallery": "vite --config apps/demos/enclosure-gallery/vite.config.js",
+    "dev:landing": "vite --config apps/landing/vite.config.js",
     "build": "node tools/build-apps.mjs",
     "preview": "vite preview",
     "test": "vitest run --passWithNoTests",
