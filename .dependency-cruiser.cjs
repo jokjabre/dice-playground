@@ -62,14 +62,14 @@ module.exports = {
       severity: 'error',
       comment: '@dice/content may depend only on @dice/core and @dice/dice.',
       from: { path: '^packages/content/' },
-      to: { path: '^packages/(?!core/|dice/)' }
+      to: { path: '^packages/(?!core/|dice/|content/)[^/]+/' }
     },
     {
       name: 'rules-core-only',
       severity: 'error',
       comment: '@dice/rules may depend only on @dice/core.',
       from: { path: '^packages/rules/' },
-      to: { path: '^packages/(?!core/)' }
+      to: { path: '^packages/(?!core/|rules/)[^/]+/' }
     },
     {
       name: 'enclosures-core-only',
@@ -83,7 +83,7 @@ module.exports = {
       severity: 'error',
       comment: '@dice/ui may depend only on @dice/core types and constants.',
       from: { path: '^packages/ui/' },
-      to: { path: '^packages/(?!core/)' }
+      to: { path: '^packages/(?!core/|ui/)[^/]+/' }
     },
     {
       name: 'engine-imports-only-allowed',

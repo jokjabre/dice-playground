@@ -1,0 +1,17 @@
+{
+  "name": "@dice/content",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Declarative, serializable content packs: schema, validation, presets, and resolution.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*",
+    "@dice/dice": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

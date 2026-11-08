@@ -1,0 +1,16 @@
+{
+  "name": "@dice/rules",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Generic dice result helpers: sums, counts, combinations, and keep plans.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

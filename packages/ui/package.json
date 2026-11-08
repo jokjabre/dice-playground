@@ -1,0 +1,17 @@
+{
+  "name": "@dice/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Framework-agnostic vanilla DOM UI: presenters, controls, HUD, and styles.",
+  "exports": {
+    ".": "./src/index.js",
+    "./styles/*": "./src/styles/*"
+  },
+  "dependencies": {
+    "@dice/core": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}
