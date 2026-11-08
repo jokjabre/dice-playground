@@ -84,22 +84,22 @@ async function flickStage(page) {
 }
 
 /**
- * Drag from the stage down into the control panel (column layout at the
- * e2e viewport): the release happens outside the stage, and the throw must
- * still count because pointer-up is observed on the window.
+ * Drag from the stage rightward into the options sidebar (row layout at
+ * the e2e viewport): the release happens outside the stage, and the throw
+ * must still count because pointer-up is observed on the window.
  *
  * @param {import('@playwright/test').Page} page
  */
 async function flickStageIntoPanel(page) {
   const stageBox = await page.getByTestId('stage').boundingBox();
   if (!stageBox) throw new Error('Stage has no bounding box.');
-  const panelBox = await page.getByTestId('sandbox-controls').boundingBox();
-  if (!panelBox) throw new Error('Panel has no bounding box.');
+  const actionsBox = await page.getByTestId('sandbox-actions').boundingBox();
+  if (!actionsBox) throw new Error('Actions row has no bounding box.');
   const startX = stageBox.x + stageBox.width / 2;
   const startY = stageBox.y + stageBox.height / 2;
   await page.mouse.move(startX, startY);
   await page.mouse.down();
-  await page.mouse.move(startX, panelBox.y + 10, { steps: 10 });
+  await page.mouse.move(actionsBox.x + actionsBox.width / 2, startY, { steps: 10 });
   await page.mouse.up();
 }
 
@@ -142,7 +142,9 @@ async function expectRollCycle(page) {
 }
 
 test.describe('sandbox', () => {
-  test.use({ viewport: { width: 640, height: 400 } });
+  // Desktop width keeps the options panel expanded by default; the mobile
+  // collapse behavior is asserted explicitly in the shell test.
+  test.use({ viewport: { width: 1280, height: 800 } });
 
   test('loads without console errors and renders the sandbox shell', async ({
     page
@@ -154,12 +156,35 @@ test.describe('sandbox', () => {
       page.getByRole('heading', { name: 'Sandbox', level: 1 })
     ).toBeVisible();
     await expect(page.getByTestId('stage')).toBeVisible();
+    // The Engine group is open by default; the accordion keeps the others
+    // collapsed.
     await expect(page.getByTestId('mode-select')).toBeVisible();
+    await expect(page.getByTestId('enclosure-select')).toBeHidden();
+    await expect(page.getByTestId('info-panel')).toBeHidden();
+
+    // The hamburger toggle collapses the whole options panel.
+    await page.getByTestId('engine-panel-toggle').click();
+    await expect(page.getByTestId('mode-select')).toBeHidden();
+    await expect(page.getByTestId('sandbox-actions')).toBeHidden();
+    await page.getByTestId('engine-panel-toggle').click();
+    await expect(page.getByTestId('mode-select')).toBeVisible();
+
+    // Accordion: opening a group closes the others.
+    await page.getByTestId('group-enclosure-toggle').click();
     await expect(page.getByTestId('enclosure-select')).toBeVisible();
-    await expect(page.getByTestId('throw-button')).toBeVisible();
-    await expect(page.getByTestId('clear-button')).toBeVisible();
+    await expect(page.getByTestId('mode-select')).toBeHidden();
+    await page.getByTestId('group-camera-toggle').click();
+    await expect(page.getByTestId('camera-distance-slider')).toBeVisible();
+    await expect(page.getByTestId('enclosure-select')).toBeHidden();
+    // Clicking the open group's toggle closes it again.
+    await page.getByTestId('group-camera-toggle').click();
+    await expect(page.getByTestId('camera-distance-slider')).toBeHidden();
+    // Details opens on its own toggle.
+    await page.getByTestId('group-details-toggle').click();
     await expect(page.getByTestId('info-panel')).toBeVisible();
-    await expect(page.getByTestId('engine-panel-toggle')).toBeVisible();
+    // Re-open Engine for a sane rest state.
+    await page.getByTestId('group-engine-toggle').click();
+    await expect(page.getByTestId('mode-select')).toBeVisible();
 
     expect(errors).toEqual([]);
   });
@@ -217,6 +242,10 @@ test.describe('sandbox', () => {
     await page.goto(`${sandboxUrl}?seed=e2e-enclosures&maxSubSteps=120&maxFrameGap=5`);
     await expectResultVisible(page);
 
+    // The Enclosure group starts collapsed (accordion).
+    await page.getByTestId('group-enclosure-toggle').click();
+    await expect(page.getByTestId('enclosure-select')).toBeVisible();
+
     for (const enclosure of ['sphere', 'cylinder', 'box']) {
       await page.getByTestId('enclosure-select').selectOption(enclosure);
       // The switch clears the dice and starts a fresh roll.
@@ -237,6 +266,19 @@ test.describe('sandbox', () => {
     await expect(page.getByTestId('info-panel')).toContainText('Enclosure: box', {
       timeout: RESULT_TIMEOUT
     });
+
+    // Enclosure size rebuilds the boundaries and rolls again.
+    await page.getByTestId('enclosure-scale-select').selectOption('1.5');
+    await expectRollCycle(page);
+    await expectValuesInRange(page, 6);
+
+    // The enclosure group reset restores box at 100% and rolls again.
+    await page.getByTestId('enclosure-reset-button').click();
+    await expect(page.getByTestId('info-panel')).toContainText('Enclosure: box', {
+      timeout: RESULT_TIMEOUT
+    });
+    await expectRollCycle(page);
+    await expectValuesInRange(page, 6);
   });
 
   test('predetermined mode rolls the requested values and rejects invalid input', async ({
@@ -302,18 +344,11 @@ test.describe('sandbox', () => {
     }).not.toBe('Motion sensors off');
 
     // Camera controls stay live while the simulation runs.
+    await page.getByTestId('group-camera-toggle').click();
+    await expect(page.getByTestId('camera-distance-slider')).toBeVisible();
     await page.getByTestId('camera-distance-slider').fill('2');
     await expect(page.getByTestId('info-panel')).toContainText(
       'Camera distance: 2.00×',
-      { timeout: RESULT_TIMEOUT }
-    );
-    await page.getByTestId('camera-near-input').fill('5');
-    await expect(page.getByTestId('info-panel')).toContainText('Camera near: 5', {
-      timeout: RESULT_TIMEOUT
-    });
-    await page.getByTestId('camera-far-input').fill('2500');
-    await expect(page.getByTestId('info-panel')).toContainText(
-      'Camera far: 2500',
       { timeout: RESULT_TIMEOUT }
     );
     await page.getByTestId('camera-reset-button').click();
@@ -321,12 +356,6 @@ test.describe('sandbox', () => {
       'Camera distance: 1.00×',
       { timeout: RESULT_TIMEOUT }
     );
-    await expect(page.getByTestId('info-panel')).toContainText('Camera near: 1', {
-      timeout: RESULT_TIMEOUT
-    });
-    await expect(page.getByTestId('info-panel')).toContainText('Camera far: 0', {
-      timeout: RESULT_TIMEOUT
-    });
 
     // Clear cancels the live run and empties the tray.
     await page.getByTestId('clear-button').click();
@@ -361,7 +390,7 @@ test.describe('sandbox', () => {
     }));
     expect(heights.scroll).toBe(heights.viewport);
 
-    await page.setViewportSize({ width: 640, height: 400 });
+    await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.getByTestId('stage')).toBeVisible();
     await expectResultVisible(page);
 

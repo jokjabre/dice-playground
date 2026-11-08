@@ -10,7 +10,8 @@ import { mergeConfig } from '@dice/core';
  * @property {Record<string, any>} [physics] Physics/world config overrides.
  * @property {Record<string, any>} [rendering] Rendering config overrides.
  * @property {{ count?: number, dice?: number, definition?: string, style?: string|any }} [dice]
- * @property {{ fixedStep?: number, maxSubSteps?: number, maxFrameGap?: number }} [loop]
+ * @property {{ fixedStep?: number, maxSubSteps?: number, maxFrameGap?: number, maxFrames?: number }} [loop]
+ * Frames a standard roll may run before it settles by force (`maxFrames`).
  * @property {Record<string, any>} [settle] Settle config overrides.
  * @property {any[]} [plugins] Plugins to attach after creation.
  * @property {Record<string, any>} [viewport] Initial metrics.
@@ -32,7 +33,7 @@ export const DEFAULT_ENGINE_CONFIG = Object.freeze({
   physics: Object.freeze({}),
   rendering: Object.freeze({}),
   dice: Object.freeze({ count: 6, definition: 'd6', style: 'classic' }),
-  loop: Object.freeze({ fixedStep: 1 / 60, maxSubSteps: 4, maxFrameGap: 0.25 }),
+  loop: Object.freeze({ fixedStep: 1 / 60, maxSubSteps: 4, maxFrameGap: 0.25, maxFrames: 1000 }),
   settle: Object.freeze({})
 });
 
@@ -60,7 +61,8 @@ export function createEngineConfig(overrides = {}) {
     loop: {
       fixedStep: merged.loop?.fixedStep ?? 1 / 60,
       maxSubSteps: merged.loop?.maxSubSteps ?? 4,
-      maxFrameGap: merged.loop?.maxFrameGap ?? 0.25
+      maxFrameGap: merged.loop?.maxFrameGap ?? 0.25,
+      maxFrames: merged.loop?.maxFrames ?? 1000
     },
     settle: merged.settle ?? {},
     plugins: overrides.plugins ?? [],

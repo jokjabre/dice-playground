@@ -13,7 +13,9 @@ import {
 import {
   SANDBOX_CAMERA,
   SANDBOX_DICE_COUNT,
+  SANDBOX_ENCLOSURE_SCALES,
   SANDBOX_ENCLOSURES,
+  SANDBOX_LIGHT,
   isSandboxEnclosure,
   sandboxContent
 } from './content.js';
@@ -42,7 +44,6 @@ import {
  * @typedef {Object} SandboxAppHandle
  * @property {import('@dice/engine').DiceEngine} engine
  * @property {ResultBanner} banner
- * @property {ControlPanel} panel
  * @property {Panel} enginePanel
  * @property {Status} motionStatus
  * @property {() => void} resize
@@ -80,6 +81,12 @@ function renderInfo(infoHost, rows) {
  * Only public package entries are used. This module never reaches into
  * package internals; the engine resolves content ids and owns the world.
  *
+ * Layout: a collapsible options panel (hamburger toggle) holding an
+ * always-visible icon action row (Reset / Throw / Clear) plus collapsible
+ * groups — Enclosure, Engine, Camera, Light, Details. Every group has its
+ * own reset; the action-row Reset restores transient state only (dice,
+ * camera distance, light position) and keeps the mode and enclosure.
+ *
  * Intentional differences from the legacy demo (see README):
  *
  * - One fresh spawn per roll. The legacy continuous mode reused the live
@@ -88,6 +95,11 @@ function renderInfo(infoHost, rows) {
  * - Predetermined rolls set the dice count to the number of targets (like
  *   the legacy) while the standalone Throw button always rolls a normal
  *   set without targets.
+ * - The legacy near/far clipping fields were dropped (user decision): they
+ *   only set clipping planes, which have no visible effect at sane values.
+ * - No motion, roll-duration, or camera-angle options are exposed: the
+ *   engine has no API for a max roll duration, a flick-interrupt policy,
+ *   or camera yaw, so they are not faked here.
  *
  * @param {SandboxAppOptions} options
  * @returns {Promise<SandboxAppHandle>}
@@ -121,8 +133,10 @@ export async function createSandboxApp(options) {
     autoHide: 6000
   });
 
-  // Collapsible engine options panel, matching the legacy "+" toggle.
-  // It starts collapsed on small screens only; desktop shows it.
+  // The whole options panel collapses through a hamburger toggle. Panel
+  // renders its title as the toggle text, so the sandbox restyles the
+  // public `toggle` handle with a hamburger glyph and keeps the accessible
+  // name explicit. The panel starts collapsed on small screens only.
   const initiallyCollapsed =
     typeof window.matchMedia === 'function' &&
     window.matchMedia('(max-width: 860px)').matches;
@@ -132,27 +146,105 @@ export async function createSandboxApp(options) {
     testId: 'engine-panel',
     toggleTestId: 'engine-panel-toggle'
   });
+  enginePanel.toggle.textContent = '☰';
+  enginePanel.toggle.setAttribute('aria-label', 'Engine options');
+  enginePanel.toggle.title = 'Engine options';
   panelHost.appendChild(enginePanel.element);
 
-  const panel = new ControlPanel({
-    title: 'Sandbox',
-    testId: 'sandbox-controls',
+  const panelRoot = enginePanel.region;
+
+  /** @type {Panel[]} */
+  const groups = [];
+
+  /**
+   * One collapsible option group. Groups form an accordion: opening one
+   * closes the others (radio-like). The panel title itself is the toggle,
+   * with a `›` chevron when closed and `⌄` when open.
+   *
+   * @param {string} title
+   * @param {{ collapsed?: boolean }} [options]
+   * @returns {Panel}
+   */
+  function createGroup(title, options = {}) {
+    const id = title.toLowerCase();
+    const group = new Panel({
+      title,
+      collapsed: options.collapsed ?? false,
+      testId: `group-${id}`,
+      toggleTestId: `group-${id}-toggle`
+    });
+    panelRoot.appendChild(group.element);
+    groups.push(group);
+    // The constructor's click listener runs first and updates `collapsed`,
+    // so by the time this runs an opened group can collapse its siblings.
+    group.toggle.addEventListener('click', () => {
+      if (!group.collapsed) {
+        for (const other of groups) {
+          if (other !== group) other.setCollapsed(true);
+        }
+      }
+    });
+    return group;
+  }
+
+  // The Engine group starts open; the rest start collapsedAccordion-style.
+  const enclosureGroup = createGroup('Enclosure', { collapsed: true });
+  const engineGroup = createGroup('Engine');
+  const cameraGroup = createGroup('Camera', { collapsed: true });
+  const lightGroup = createGroup('Light', { collapsed: true });
+  const detailsGroup = createGroup('Details', { collapsed: true });
+
+  // -- Action row: reset / throw / clear, always visible, icon only. -----
+  const resetButton = /** @type {HTMLButtonElement} */ (
+    createElement('button', {
+      type: 'button',
+      className: 'dice-control-button sandbox-action-button',
+      'data-testid': 'reset-button',
+      'aria-label': 'Reset scene',
+      title: 'Reset scene',
+      text: '↺'
+    })
+  );
+  const throwButton = /** @type {HTMLButtonElement} */ (
+    createElement('button', {
+      type: 'button',
+      className: 'dice-control-button sandbox-action-button',
+      'data-testid': 'throw-button',
+      'aria-label': 'Throw the dice',
+      title: 'Throw',
+      text: '🎲'
+    })
+  );
+  const clearButton = /** @type {HTMLButtonElement} */ (
+    createElement('button', {
+      type: 'button',
+      className: 'dice-control-button sandbox-action-button',
+      'data-testid': 'clear-button',
+      'aria-label': 'Clear the dice',
+      title: 'Clear',
+      text: '🧹'
+    })
+  );
+  const actions = createElement(
+    'div',
+    {
+      className: 'sandbox-actions',
+      role: 'toolbar',
+      'aria-label': 'Dice actions',
+      'data-testid': 'sandbox-actions'
+    },
+    [resetButton, throwButton, clearButton]
+  );
+  panelRoot.prepend(actions);
+
+  // -- Enclosure group -----------------------------------------------------
+  const enclosurePanel = new ControlPanel({
+    testId: 'controls-enclosure',
     items: [
-      {
-        id: 'mode',
-        type: 'select',
-        label: 'Engine Mode',
-        value: initialMode,
-        options: SANDBOX_MODES.map((mode) => ({
-          value: mode.id,
-          label: mode.label
-        })),
-        testId: 'mode-select'
-      },
       {
         id: 'enclosure',
         type: 'select',
-        label: 'Enclosure',
+        label: 'Type',
         value: initialEnclosure,
         options: SANDBOX_ENCLOSURES.map((enclosure) => ({
           value: enclosure.id,
@@ -161,52 +253,80 @@ export async function createSandboxApp(options) {
         testId: 'enclosure-select'
       },
       {
-        id: 'camera-distance',
-        type: 'range',
-        label: 'Camera',
-        value: SANDBOX_CAMERA.defaultDistance,
-        min: SANDBOX_CAMERA.min,
-        max: SANDBOX_CAMERA.max,
-        step: SANDBOX_CAMERA.step,
-        testId: 'camera-distance-slider'
+        id: 'enclosure-scale',
+        type: 'select',
+        label: 'Size',
+        value: '1',
+        options: SANDBOX_ENCLOSURE_SCALES.map((preset) => ({
+          value: String(preset.value),
+          label: preset.label
+        })),
+        testId: 'enclosure-scale-select'
       },
       {
-        id: 'camera-near',
-        type: 'number',
-        label: 'Near',
-        min: 0.1,
-        step: 1,
-        testId: 'camera-near-input'
-      },
-      {
-        id: 'camera-far',
-        type: 'number',
-        label: 'Far',
-        min: 0,
-        step: 100,
-        testId: 'camera-far-input'
-      },
-      {
-        id: 'camera-reset',
+        id: 'enclosure-reset',
         type: 'button',
-        label: 'Reset',
-        testId: 'camera-reset-button'
-      },
-      {
-        id: 'throw',
-        type: 'button',
-        label: 'Throw',
-        testId: 'throw-button'
-      },
-      {
-        id: 'clear',
-        type: 'button',
-        label: 'Clear',
-        testId: 'clear-button'
+        label: 'Reset enclosure',
+        testId: 'enclosure-reset-button'
       }
     ]
   });
-  enginePanel.append(panel.element);
+  enclosureGroup.append(enclosurePanel.element);
+
+  // -- Engine group --------------------------------------------------------
+  /**
+   * Seconds the standard strategy allows a roll to run before settling by
+   * force. The engine stores it as frames; this control works in seconds.
+   * The default matches the engine's `maxFrames` (1000) safety cap.
+   */
+  const DEFAULT_MAX_ROLL_FRAMES = 1000;
+  /** @type {(seconds: number) => number} */
+  const secondsToFrames = (seconds) =>
+    Math.max(1, Math.round(seconds / engine.loop.fixedStep));
+  /** @type {(frames: number) => number} */
+  const framesToSeconds = (frames) =>
+    Number((frames * engine.loop.fixedStep).toFixed(2));
+  const maxRollDurationSeconds = framesToSeconds(DEFAULT_MAX_ROLL_FRAMES);
+
+  const engineControls = new ControlPanel({
+    testId: 'controls-engine',
+    items: [
+      {
+        id: 'mode',
+        type: 'select',
+        label: 'Mode',
+        value: initialMode,
+        options: SANDBOX_MODES.map((mode) => ({
+          value: mode.id,
+          label: mode.label
+        })),
+        testId: 'mode-select'
+      },
+      {
+        id: 'flick-interrupt',
+        type: 'toggle',
+        label: 'Flick interrupts current roll',
+        value: false,
+        testId: 'flick-interrupt-toggle'
+      },
+      {
+        id: 'max-roll-duration',
+        type: 'number',
+        label: 'Max roll duration (s)',
+        value: maxRollDurationSeconds,
+        min: 0.1,
+        step: 1,
+        testId: 'max-roll-duration-input'
+      },
+      {
+        id: 'engine-reset',
+        type: 'button',
+        label: 'Reset engine options',
+        testId: 'engine-reset-button'
+      }
+    ]
+  });
+  engineGroup.append(engineControls.element);
 
   // Motion controls are shown only in continuous mode, matching the legacy
   // conditional groups. The Status component follows `motion:status`.
@@ -236,7 +356,7 @@ export async function createSandboxApp(options) {
     enableMotionButton,
     /** @type {HTMLElement} */ (motionStatus.element)
   );
-  enginePanel.append(motionControls);
+  engineGroup.append(motionControls);
 
   // Predetermined controls are shown only in predetermined mode.
   const predeterminedControls = createElement(
@@ -282,10 +402,77 @@ export async function createSandboxApp(options) {
     rollTargetButton,
     /** @type {HTMLElement} */ (targetError)
   );
-  enginePanel.append(predeterminedControls);
+  engineGroup.append(predeterminedControls);
 
-  // Read-only info panel: mirrors the legacy visibility into mode,
-  // enclosure, and camera state without a debug DOM panel.
+  // -- Camera group --------------------------------------------------------
+  const cameraPanel = new ControlPanel({
+    testId: 'controls-camera',
+    items: [
+      {
+        id: 'camera-distance',
+        type: 'range',
+        label: 'Distance',
+        value: SANDBOX_CAMERA.defaultDistance,
+        min: SANDBOX_CAMERA.min,
+        max: SANDBOX_CAMERA.max,
+        step: SANDBOX_CAMERA.step,
+        testId: 'camera-distance-slider'
+      },
+      {
+        id: 'camera-reset',
+        type: 'button',
+        label: 'Reset camera',
+        testId: 'camera-reset-button'
+      }
+    ]
+  });
+  cameraGroup.append(cameraPanel.element);
+
+  // -- Light group ---------------------------------------------------------
+  const lightPanel = new ControlPanel({
+    testId: 'controls-light',
+    items: [
+      {
+        id: 'light-x',
+        type: 'range',
+        label: 'Light X',
+        value: SANDBOX_LIGHT.defaultPosition.x,
+        min: SANDBOX_LIGHT.min,
+        max: SANDBOX_LIGHT.max,
+        step: SANDBOX_LIGHT.step,
+        testId: 'light-x-slider'
+      },
+      {
+        id: 'light-y',
+        type: 'range',
+        label: 'Light Y',
+        value: SANDBOX_LIGHT.defaultPosition.y,
+        min: SANDBOX_LIGHT.min,
+        max: SANDBOX_LIGHT.max,
+        step: SANDBOX_LIGHT.step,
+        testId: 'light-y-slider'
+      },
+      {
+        id: 'light-z',
+        type: 'range',
+        label: 'Light Z',
+        value: SANDBOX_LIGHT.defaultPosition.z,
+        min: SANDBOX_LIGHT.min,
+        max: SANDBOX_LIGHT.max,
+        step: SANDBOX_LIGHT.step,
+        testId: 'light-z-slider'
+      },
+      {
+        id: 'light-reset',
+        type: 'button',
+        label: 'Reset light',
+        testId: 'light-reset-button'
+      }
+    ]
+  });
+  lightGroup.append(lightPanel.element);
+
+  // -- Details group -------------------------------------------------------
   const infoPanelHost = createElement(
     'section',
     {
@@ -295,7 +482,7 @@ export async function createSandboxApp(options) {
     },
     []
   );
-  enginePanel.append(infoPanelHost);
+  detailsGroup.append(infoPanelHost);
 
   const pointerInput = new PointerInput({ container: stage });
   engine.use(pointerInput);
@@ -314,18 +501,28 @@ export async function createSandboxApp(options) {
    */
   let activeEnclosure = initialEnclosure;
 
+  /** Tracked so repeated `input`/`change` pairs do not rebuild twice. */
+  let activeScale = 1;
+
   /** Tracked so repeated `input`/`change` pairs do not re-enter a mode. */
   let activeMode = initialMode;
 
   /** @type {number} */
   let currentDiceCount = SANDBOX_DICE_COUNT;
 
-  /** @type {{ distance: number, near: number, far: number }} */
-  const cameraSettings = {
-    distance: SANDBOX_CAMERA.defaultDistance,
-    near: SANDBOX_CAMERA.defaultNear,
-    far: SANDBOX_CAMERA.defaultFar
-  };
+  /** @type {{ distance: number }} */
+  const cameraSettings = { distance: SANDBOX_CAMERA.defaultDistance };
+
+  /** Spotlight position in scene-relative units. */
+  const lightPosition = { ...SANDBOX_LIGHT.defaultPosition };
+
+  /**
+   * Format a scene-relative component for the info panel.
+   *
+   * @param {number} value
+   * @returns {string}
+   */
+  const formatComponent = (value) => String(Number(value.toFixed(2)));
 
   const updateInfo = () => {
     const config = engine.world.getConfig();
@@ -344,13 +541,11 @@ export async function createSandboxApp(options) {
           camera.distance ?? cameraSettings.distance
         ).toFixed(2)}×`
       },
-      cameraNear: {
-        term: 'Camera near',
-        value: String(camera.near ?? cameraSettings.near)
-      },
-      cameraFar: {
-        term: 'Camera far',
-        value: String(camera.far ?? cameraSettings.far)
+      light: {
+        term: 'Light position',
+        value: `${formatComponent(lightPosition.x)}, ${formatComponent(
+          lightPosition.y
+        )}, ${formatComponent(lightPosition.z)}`
       },
       result: {
         term: 'Last result',
@@ -393,28 +588,33 @@ export async function createSandboxApp(options) {
   }
 
   /**
-   * @returns {Promise<void>}
+   * Roll after an enclosure rebuild (type or size change), keeping the
+   * continuous live run alive in continuous mode.
+   *
+   * @returns {void}
    */
-  async function enableMotion() {
-    try {
-      const granted = await motionInput.enable();
-      if (!granted) {
-        // MotionInput already emitted `motion:status` with the reason.
-        motionStatus.update(getMotionMessage());
-      }
-    } catch (error) {
-      console.warn('Unable to enable motion sensors:', error);
-      motionStatus.update('Motion sensor error');
+  function rollAfterEnclosureChange() {
+    if (activeMode === 'continuous') {
+      void throwDice({
+        dice: currentDiceCount,
+        mode: 'continuous',
+        cancelActive: true
+      });
+    } else {
+      void throwDice({ dice: currentDiceCount });
     }
   }
 
   /**
-   * Latest status message emitted by the motion input.
-   *
-   * @returns {string}
+   * @returns {Promise<void>}
    */
-  function getMotionMessage() {
-    return motionStatus.text || 'Motion sensors off';
+  async function enableMotion() {
+    try {
+      await motionInput.enable();
+    } catch (error) {
+      console.warn('Unable to enable motion sensors:', error);
+      motionStatus.update('Motion sensor error');
+    }
   }
 
   /**
@@ -441,6 +641,7 @@ export async function createSandboxApp(options) {
     // itself, so leaving the mode ends it.
     engine.cancelRoll('mode-change');
     engine.setMode(engineModeFor(modeId));
+    engineControls.setValue('mode', modeId);
 
     if (modeId !== 'continuous') {
       motionInput.disable();
@@ -476,44 +677,103 @@ export async function createSandboxApp(options) {
   }
 
   /**
-   * Read the near/far inputs and apply the camera settings. Empty or
-   * invalid values fall back to the content defaults (near `1`, far `0`
-   * for auto).
+   * Read the distance slider and apply the camera settings.
    *
    * @returns {void}
    */
   function applyCamera() {
-    const distanceValue = Number(panel.getValue('camera-distance'));
+    const distanceValue = Number(cameraPanel.getValue('camera-distance'));
     const distance =
       Number.isFinite(distanceValue) && distanceValue > 0
         ? distanceValue
         : SANDBOX_CAMERA.defaultDistance;
-    const nearValue = Number(panel.getValue('camera-near'));
-    const near =
-      Number.isFinite(nearValue) && nearValue > 0
-        ? nearValue
-        : SANDBOX_CAMERA.defaultNear;
-    const farValue = Number(panel.getValue('camera-far'));
-    const far =
-      Number.isFinite(farValue) && farValue > 0
-        ? farValue
-        : SANDBOX_CAMERA.defaultFar;
     cameraSettings.distance = distance;
-    cameraSettings.near = near;
-    cameraSettings.far = far;
-    engine.setCamera({ distance, near, far });
+    engine.setCamera({ distance });
     updateInfo();
   }
 
-  panel.on((/** @type {{ id: string, value: unknown }} */ change) => {
+  /**
+   * @returns {void}
+   */
+  function resetCamera() {
+    cameraSettings.distance = SANDBOX_CAMERA.defaultDistance;
+    cameraPanel.setValue('camera-distance', SANDBOX_CAMERA.defaultDistance);
+    engine.resetCamera();
+    updateInfo();
+  }
+
+  /**
+   * @returns {void}
+   */
+  function resetLight() {
+    Object.assign(lightPosition, SANDBOX_LIGHT.defaultPosition);
+    engine.setLight({ position: lightPosition });
+    // The render loop idles after a roll settles, so request a frame so
+    // the lighting change is visible immediately.
+    engine.world.render(0);
+    for (const axis of /** @type {const} */ (['x', 'y', 'z'])) {
+      lightPanel.setValue(`light-${axis}`, lightPosition[axis]);
+    }
+    updateInfo();
+  }
+
+  /**
+   * Global reset (action row): clears the dice, restores the camera
+   * distance and the light position, and keeps the mode and enclosure.
+   *
+   * @returns {void}
+   */
+  function resetScene() {
+    engine.reset();
+    currentDiceCount = SANDBOX_DICE_COUNT;
+    banner.clear();
+    lastResult = null;
+    cameraSettings.distance = SANDBOX_CAMERA.defaultDistance;
+    cameraPanel.setValue('camera-distance', SANDBOX_CAMERA.defaultDistance);
+    engine.resetCamera();
+    Object.assign(lightPosition, SANDBOX_LIGHT.defaultPosition);
+    engine.setLight({ position: lightPosition });
+    for (const axis of /** @type {const} */ (['x', 'y', 'z'])) {
+      lightPanel.setValue(`light-${axis}`, lightPosition[axis]);
+    }
+    updateInfo();
+  }
+
+  /**
+   * @returns {void}
+   */
+  function resetEnclosure() {
+    if (activeEnclosure === 'box' && activeScale === 1) return;
+    activeEnclosure = 'box';
+    activeScale = 1;
+    enclosurePanel.setValue('enclosure', 'box');
+    enclosurePanel.setValue('enclosure-scale', '1');
+    engine.setEnclosure('box');
+    engine.setEnclosureScale(1);
+    banner.clear();
+    lastResult = null;
+    updateInfo();
+    rollAfterEnclosureChange();
+  }
+
+  /**
+   * @returns {void}
+   */
+  function resetEngineOptions() {
+    pointerInput.interruptRolls = false;
+    engineControls.setValue('flick-interrupt', false);
+    engine.setLoopConfig({ maxFrames: DEFAULT_MAX_ROLL_FRAMES });
+    engineControls.setValue('max-roll-duration', maxRollDurationSeconds);
+    motionInput.disable();
+    motionStatus.update('Motion sensors off');
+    targetInput.value = '6, 6, 6';
+    showTargetError('');
+    applyMode('standard');
+    updateInfo();
+  }
+
+  enclosurePanel.on((/** @type {{ id: string, value: unknown }} */ change) => {
     switch (change.id) {
-      case 'mode': {
-        const modeId = String(change.value ?? 'standard');
-        if (isSandboxMode(modeId)) {
-          applyMode(modeId);
-        }
-        break;
-      }
       case 'enclosure': {
         const id = String(change.value ?? 'box');
         if (id === activeEnclosure) break;
@@ -522,58 +782,88 @@ export async function createSandboxApp(options) {
         banner.clear();
         lastResult = null;
         updateInfo();
-        if (activeMode === 'continuous') {
-          void throwDice({
-            dice: currentDiceCount,
-            mode: 'continuous',
-            cancelActive: true
-          });
-        } else {
-          void throwDice({ dice: currentDiceCount });
-        }
+        rollAfterEnclosureChange();
         break;
       }
-      case 'camera-distance':
-      case 'camera-near':
-      case 'camera-far': {
-        applyCamera();
-        break;
-      }
-      case 'camera-reset': {
-        panel.setValue('camera-distance', SANDBOX_CAMERA.defaultDistance);
-        panel.setValue('camera-near', '');
-        panel.setValue('camera-far', '');
-        cameraSettings.distance = SANDBOX_CAMERA.defaultDistance;
-        cameraSettings.near = SANDBOX_CAMERA.defaultNear;
-        cameraSettings.far = SANDBOX_CAMERA.defaultFar;
-        engine.resetCamera();
-        updateInfo();
-        break;
-      }
-      case 'throw': {
-        if (activeMode === 'continuous') {
-          // A continuous roll never settles on its own, so Throw replaces
-          // the live run instead of queueing (RollInProgress).
-          void throwDice({
-            dice: currentDiceCount,
-            mode: 'continuous',
-            cancelActive: true
-          });
-        } else {
-          void throwDice({ dice: currentDiceCount });
-        }
-        break;
-      }
-      case 'clear': {
-        engine.clear();
+      case 'enclosure-scale': {
+        const scale = Number(change.value);
+        if (!Number.isFinite(scale) || scale <= 0 || scale === activeScale) break;
+        activeScale = scale;
+        engine.setEnclosureScale(scale);
         banner.clear();
         lastResult = null;
         updateInfo();
+        rollAfterEnclosureChange();
+        break;
+      }
+      case 'enclosure-reset': {
+        resetEnclosure();
         break;
       }
       default:
         break;
     }
+  });
+
+  engineControls.on((/** @type {{ id: string, value: unknown }} */ change) => {
+    if (change.id === 'mode') {
+      const modeId = String(change.value ?? 'standard');
+      if (isSandboxMode(modeId)) {
+        applyMode(modeId);
+      }
+    } else if (change.id === 'flick-interrupt') {
+      pointerInput.interruptRolls = Boolean(change.value);
+    } else if (change.id === 'max-roll-duration') {
+      const seconds = Number(change.value);
+      if (Number.isFinite(seconds) && seconds > 0) {
+        engine.setLoopConfig({ maxFrames: secondsToFrames(seconds) });
+      }
+    } else if (change.id === 'engine-reset') {
+      resetEngineOptions();
+    }
+  });
+
+  cameraPanel.on((/** @type {{ id: string, value: unknown }} */ change) => {
+    if (change.id === 'camera-distance') {
+      applyCamera();
+    } else if (change.id === 'camera-reset') {
+      resetCamera();
+    }
+  });
+
+  lightPanel.on((/** @type {{ id: string, value: unknown }} */ change) => {
+    if (change.id === 'light-reset') {
+      resetLight();
+      return;
+    }
+    const axis = /** @type {'x'|'y'|'z'} */ (change.id.slice(-1));
+    const value = Number(change.value);
+    if (!Number.isFinite(value)) return;
+    lightPosition[axis] = value;
+    engine.setLight({ position: lightPosition });
+    engine.world.render(0);
+    updateInfo();
+  });
+
+  resetButton.addEventListener('click', resetScene);
+  throwButton.addEventListener('click', () => {
+    if (activeMode === 'continuous') {
+      // A continuous roll never settles on its own, so Throw replaces
+      // the live run instead of queueing (RollInProgress).
+      void throwDice({
+        dice: currentDiceCount,
+        mode: 'continuous',
+        cancelActive: true
+      });
+    } else {
+      void throwDice({ dice: currentDiceCount });
+    }
+  });
+  clearButton.addEventListener('click', () => {
+    engine.clear();
+    banner.clear();
+    lastResult = null;
+    updateInfo();
   });
 
   enableMotionButton.addEventListener('click', () => {
@@ -588,7 +878,7 @@ export async function createSandboxApp(options) {
     // Continuous rolls never settle, so the Throw button stays usable to
     // replace the live run. Settling rolls disable it until they finish.
     if (activeMode !== 'continuous') {
-      panel.setDisabled('throw', true);
+      throwButton.disabled = true;
     }
   });
   engine.events.on(EVENTS.ROLL_SETTLE, (/** @type {any} */ payload) => {
@@ -604,11 +894,11 @@ export async function createSandboxApp(options) {
             ),
       rollId: String(payload?.rollId ?? result.id ?? '')
     };
-    panel.setDisabled('throw', false);
+    throwButton.disabled = false;
     updateInfo();
   });
   engine.events.on(EVENTS.ROLL_CANCEL, () => {
-    panel.setDisabled('throw', false);
+    throwButton.disabled = false;
     updateInfo();
   });
   engine.events.on(EVENTS.LOOP_START, () => {
@@ -637,7 +927,6 @@ export async function createSandboxApp(options) {
   return {
     engine,
     banner,
-    panel,
     enginePanel,
     motionStatus,
     resize: () => {
@@ -648,7 +937,6 @@ export async function createSandboxApp(options) {
     destroy: () => {
       motionInput.disable();
       banner.destroy();
-      panel.destroy();
       enginePanel.destroy();
       engine.destroy();
     }

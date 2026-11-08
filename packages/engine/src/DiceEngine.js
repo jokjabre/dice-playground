@@ -97,6 +97,15 @@ export class DiceEngine {
   /** @type {string} */
   #mode = 'standard';
 
+  /**
+   * Frames a standard roll may run before the strategy settles by force.
+   * Read at strategy construction time, so `setLoopConfig({ maxFrames })`
+   * takes effect from the next roll/mode/start.
+   *
+   * @type {number}
+   */
+  #maxFrames = 1000;
+
   /** @type {PendingRoll|null} */
   #pendingRoll = null;
 
@@ -121,6 +130,7 @@ export class DiceEngine {
     this.#scheduler = parts.scheduler;
     this.#engineId = parts.engineId;
     this.#lastMetrics = parts.metrics;
+    this.#maxFrames = config.loop?.maxFrames ?? 1000;
 
     this.#events.on(EVENTS.LOOP_STOP, (/** @type {any} */ payload) => {
       this.#onLoopStop(payload);
@@ -432,7 +442,7 @@ export class DiceEngine {
       const strategy =
         mode === 'continuous'
           ? new ContinuousMotionStrategy()
-          : new StandardRollStrategy();
+          : new StandardRollStrategy({ maxFrames: this.#maxFrames });
       this.#loop.setStrategy(strategy);
       this.#loop.start(strategy);
 
@@ -588,7 +598,7 @@ export class DiceEngine {
     const strategy =
       mode === 'continuous'
         ? new ContinuousMotionStrategy()
-        : new StandardRollStrategy();
+        : new StandardRollStrategy({ maxFrames: this.#maxFrames });
     this.#loop.setStrategy(strategy);
   }
 
@@ -659,7 +669,7 @@ export class DiceEngine {
   }
 
   /**
-   * @param {{ fixedStep?: number, maxSubSteps?: number, maxFrameGap?: number }} config
+   * @param {{ fixedStep?: number, maxSubSteps?: number, maxFrameGap?: number, maxFrames?: number }} config
    * @returns {void}
    */
   setLoopConfig(config = {}) {
@@ -672,6 +682,12 @@ export class DiceEngine {
     }
     if (config.maxSubSteps !== undefined) this.#loop.maxSubSteps = config.maxSubSteps;
     if (config.maxFrameGap !== undefined) this.#loop.maxFrameGap = config.maxFrameGap;
+    if (config.maxFrames !== undefined) {
+      if (!Number.isInteger(config.maxFrames) || config.maxFrames <= 0) {
+        throw new RangeError('loop maxFrames must be a positive integer.');
+      }
+      this.#maxFrames = config.maxFrames;
+    }
   }
 
   /**
@@ -703,7 +719,7 @@ export class DiceEngine {
     const strategy =
       this.#mode === 'continuous'
         ? new ContinuousMotionStrategy()
-        : new StandardRollStrategy();
+        : new StandardRollStrategy({ maxFrames: this.#maxFrames });
     this.#loop.start(strategy);
   }
 

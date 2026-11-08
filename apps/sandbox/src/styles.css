@@ -101,6 +101,37 @@ body {
   overflow-y: auto;
 }
 
+/* Collapsed groups must hide even though the region is styled as flex. */
+.sandbox-panel .dice-panel-region[hidden] {
+  display: none;
+}
+
+/* Hamburger toggle for the whole options panel. Group toggles keep the
+ * full-width header look; only the hamburger is compact. */
+.sandbox-panel > .dice-panel > .dice-panel-toggle {
+  align-self: flex-start;
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 8px 12px;
+}
+
+/* Always-visible icon actions: reset / throw / clear. */
+.sandbox-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.sandbox-action-button {
+  flex: 1 1 0%;
+  font-size: 22px;
+  line-height: 1;
+  min-height: 44px;
+  padding: 8px 4px;
+}
+
 /* Mode-conditional groups (motion / predetermined) match the legacy
  * toolbar grouping: a labeled control row with an action button. */
 .sandbox-group {

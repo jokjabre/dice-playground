@@ -28,20 +28,31 @@ Open http://localhost:5174/apps/sandbox/
 
 ## Controls
 
-- **Engine Mode** — switch between standard, continuous, and predetermined.
-- **Enable Motion** — request/disable motion sensors (continuous mode
-  only). Status is shown next to the button.
-- **Enclosure** — switch between Box, Sphere, and Cylinder. Switching
-  clears the dice, rebuilds the boundaries, and rolls again.
-- **Camera / Near / Far / Reset** — distance slider plus near/far clipping
-  fields. Empty near/far fall back to the defaults (near `1`, far `0` for
-  auto); Reset restores all three.
-- **Throw** — roll a normal set of dice. While a settling roll is running
-  the button is disabled; in continuous mode it replaces the live run.
-- **Clear** — remove the dice and the result banner.
-- **Engine options panel** — the "+" toggle collapses/expands the panel;
-  Escape inside the panel collapses it and returns focus to the toggle.
-  The panel starts collapsed on small screens.
+The options panel collapses through a hamburger toggle (it starts
+collapsed on small screens) and groups its options into an accordion of
+collapsible sections: opening one closes the others. Every group also has
+its own reset; the global reset stays in the always-visible action row.
+
+- **Actions (always visible)** — ↺ Reset scene (clears the dice and
+  restores camera distance and light; keeps the mode and enclosure),
+  🎲 Throw, 🧹 Clear.
+- **Enclosure** — Type (Box / Sphere / Cylinder), Size (75%–200%),
+  Reset enclosure (Box at 100%, rolls again).
+- **Engine** — Mode; "Flick interrupts current roll" (a flick cancels the
+  running roll and starts a new one instead of waiting for it to settle);
+  Max roll duration in seconds (the roll settles by force after it);
+  motion controls (Enable Motion, continuous mode only); predetermined
+  targets (Target input + Roll Target, predetermined mode only — the
+  number of values is the dice count); Reset engine options (Standard
+  mode, flick waits, default duration, motion off, default targets).
+- **Camera** — Distance slider, Reset camera.
+- **Light** — Position X/Y/Z sliders, Reset light.
+- **Details** — mode, enclosure, dice count, physics state, camera
+  distance, light position, and last result.
+
+Not exposed (the engine has no API for them): a camera view angle/yaw,
+enclosure "view angle", and light "angle". Light controls adjust the
+spotlight position; camera zoom is the distance multiplier.
 
 Query parameters:
 
@@ -79,6 +90,9 @@ Intentional differences from the legacy demo:
   and start no roll, instead of being silently filtered.
 - **Camera readout.** Camera state is shown in the info panel in the same
   `distance×` format as the legacy readout.
+- **Near/far fields removed** (owner decision): the legacy near/far inputs
+  only set clipping planes; at sensible values they have no visible effect,
+  so the sandbox exposes just the distance.
 - **No global scripts or singletons.** Three and Cannon are loaded through
   the engine backends only, and the legacy `/dice/` URL is not preserved.
 
@@ -89,6 +103,10 @@ The app composes only public package entries (`@dice/engine`,
 `@dice/core`). Enclosure definitions live in `@dice/enclosures`; app-local
 copy and the classic tray content live in `src/content.js`, and mode
 vocabulary plus target parsing live in `src/modes.js`. The result banner,
-control panel, collapsible panel, and motion status come from `@dice/ui`.
-If the engine cannot start (for example, WebGL is unavailable), a readable
-failure message is shown instead of the stage.
+control panels, accordion groups, and motion status come from `@dice/ui`.
+The Engine group uses two engine/input capabilities: flick interruption
+(`PointerInput.interruptRolls` → `cancelActive`) and the standard-roll
+force-settle cap (`engine.setLoopConfig({ maxFrames })`, configured from
+the duration field in seconds). If the engine cannot start (for example,
+WebGL is unavailable), a readable failure message is shown instead of the
+stage.

@@ -40,6 +40,33 @@ describe('PointerInput', () => {
     input.detach();
   });
 
+  it('passes cancelActive only when interruptRolls is set', () => {
+    let now = 1000;
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-interrupt'),
+      now: () => now
+    });
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    let request = host.calls.filter((call) => call.method === 'roll')[0].args[0];
+    expect(request.cancelActive).toBe(false);
+
+    input.interruptRolls = true;
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    request = host.calls.filter((call) => call.method === 'roll')[1].args[0];
+    expect(request.cancelActive).toBe(true);
+    input.detach();
+  });
+
   it('ignores sub-threshold moves', () => {
     const host = createFakeHost();
     const container = createFakeContainer();

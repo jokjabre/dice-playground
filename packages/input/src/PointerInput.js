@@ -29,6 +29,9 @@ import {
  * @property {number} [dieInertia]
  * @property {any} [rng]
  * @property {() => number} [now]
+ * @property {boolean} [interruptRolls] When true, a flick passes
+ * `cancelActive` so it replaces a roll that is still running instead of
+ * being dropped. Default false: flicks wait for the current roll to end.
  */
 
 /**
@@ -72,6 +75,16 @@ export class PointerInput {
   /** @type {boolean} */
   #enabled = false;
 
+  /**
+   * Whether a flick interrupts a roll that is still running (passes
+   * `cancelActive` to the host roll request). Settable at runtime so apps
+   * can bind it to a setting. Default false: flicks wait for the current
+   * roll to settle.
+   *
+   * @type {boolean}
+   */
+  interruptRolls;
+
   /** @type {(event: any) => void} */
   #onPointerDown;
 
@@ -99,6 +112,7 @@ export class PointerInput {
     this.#dieInertia = options.dieInertia ?? 13;
     this.#rng = options.rng ?? null;
     this.#now = options.now ?? (() => Date.now());
+    this.interruptRolls = options.interruptRolls ?? false;
 
     this.#onPointerDown = (event) => this.#handlePointerDown(event);
     this.#onPointerUp = (event) => this.#handlePointerUp(event);
@@ -243,7 +257,11 @@ export class PointerInput {
     });
     if (vectors.length === 0) return;
 
-    const result = this.#host.roll({ vectors, dice: vectors.length });
+    const result = this.#host.roll({
+      vectors,
+      dice: vectors.length,
+      cancelActive: this.interruptRolls
+    });
     if (result && typeof result.catch === 'function') {
       result.catch(() => {});
     }

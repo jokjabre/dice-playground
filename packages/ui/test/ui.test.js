@@ -264,6 +264,21 @@ describe('Toolbar, Panel, and Status', () => {
     panel.destroy();
   });
 
+  it('panel chevron reflects the collapsed state', () => {
+    const open = new Panel({ title: 'Open', container, collapsed: false });
+    const openToggle = container.querySelector('[data-testid="panel-toggle"]');
+    expect(openToggle.textContent).toContain('⌄');
+    open.destroy();
+
+    const closed = new Panel({ title: 'Closed', container, collapsed: true });
+    const closedToggle = container.querySelector('[data-testid="panel-toggle"]');
+    expect(closedToggle.textContent).toContain('›');
+    closedToggle.click();
+    expect(closedToggle.textContent).toContain('⌄');
+    expect(closedToggle.getAttribute('aria-expanded')).toBe('true');
+    closed.destroy();
+  });
+
   it('status follows motion:status events', () => {
     const events = new EventBus();
     const status = new Status({ events, container });

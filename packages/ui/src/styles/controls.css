@@ -55,6 +55,24 @@
   min-height: 36px;
 }
 
+/* Disclosure header: the panel title itself is the toggle, with a
+ * chevron. Full width so the whole header row is the hit target. */
+.dice-panel-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.dice-panel-chevron {
+  flex: none;
+  width: 1em;
+  text-align: center;
+  line-height: 1;
+}
+
 .dice-control-button:hover,
 .dice-toolbar-button:hover,
 .dice-panel-toggle:hover {
@@ -85,6 +103,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* `display: flex` above would otherwise override the `hidden` attribute,
+ * so collapsed Panel regions would stay visible. */
+.dice-panel-region[hidden] {
+  display: none;
 }
 
 .dice-status {

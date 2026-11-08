@@ -248,6 +248,22 @@ describe('lifecycle and configuration', () => {
     engine.destroy();
   });
 
+  it('applies the loop maxFrames safety cap to the next roll strategy', async () => {
+    const engine = await createHeadlessEngine();
+    expect(() =>
+      engine.setLoopConfig({ maxFrames: 0 })
+    ).toThrow(/maxFrames must be a positive integer/);
+    expect(() =>
+      engine.setLoopConfig({ maxFrames: 2.5 })
+    ).toThrow(/maxFrames must be a positive integer/);
+
+    engine.setLoopConfig({ maxFrames: 7 });
+    await engine.roll({ dice: 1, seed: 'maxframes' });
+    expect(engine.loop.strategy.maxFrames).toBe(7);
+
+    engine.destroy();
+  });
+
   it('resizes from explicit metrics and emits engine:resize', async () => {
     const engine = await createHeadlessEngine();
     const seen = [];

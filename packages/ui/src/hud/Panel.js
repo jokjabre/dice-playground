@@ -1,7 +1,10 @@
 import { createElement } from '../dom/createElement.js';
 
 /**
- * Collapsible panel wrapper with a toggle button.
+ * Collapsible panel wrapper with a disclosure toggle. The toggle is the
+ * panel title itself, preceded by a chevron: `›` when closed, `⌄` when
+ * open. Panels are independent disclosures; apps that want accordion
+ * (mutually exclusive) behavior collapse siblings on toggle clicks.
  *
  * - The toggle reports `aria-expanded` and controls the region by id.
  * - `Escape` inside the panel collapses it and returns focus to the toggle.
@@ -17,6 +20,9 @@ export class Panel {
   /** @type {HTMLElement} */
   #toggle;
 
+  /** @type {HTMLElement} */
+  #chevron;
+
   /** @type {boolean} */
   #collapsed;
 
@@ -28,14 +34,23 @@ export class Panel {
     const regionId = `panel-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
     this.#collapsed = options.collapsed ?? false;
 
-    this.#toggle = createElement('button', {
-      type: 'button',
-      className: 'dice-panel-toggle',
-      'aria-expanded': String(!this.#collapsed),
-      'aria-controls': regionId,
-      'data-testid': options.toggleTestId ?? 'panel-toggle',
-      text: title
+    this.#chevron = createElement('span', {
+      className: 'dice-panel-chevron',
+      'aria-hidden': 'true',
+      text: this.#collapsed ? '›' : '⌄'
     });
+
+    this.#toggle = createElement(
+      'button',
+      {
+        type: 'button',
+        className: 'dice-panel-toggle',
+        'aria-expanded': String(!this.#collapsed),
+        'aria-controls': regionId,
+        'data-testid': options.toggleTestId ?? 'panel-toggle'
+      },
+      [this.#chevron, title]
+    );
 
     this.#region = createElement(
       'div',
@@ -108,6 +123,7 @@ export class Panel {
     this.#collapsed = Boolean(collapsed);
     this.#region.hidden = this.#collapsed;
     this.#toggle.setAttribute('aria-expanded', String(!this.#collapsed));
+    this.#chevron.textContent = this.#collapsed ? '›' : '⌄';
   }
 
   /**
