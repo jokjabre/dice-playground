@@ -1,0 +1,15 @@
+{
+  "name": "@dice/app-yamb",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Yamb: scorecard dice game built on the dice engine (Dice Playground Yamb variant v1).",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/engine": "*",
+    "@dice/input": "*",
+    "@dice/rules": "*",
+    "@dice/ui": "*"
+  }
+}

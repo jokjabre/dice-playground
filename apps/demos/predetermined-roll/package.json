@@ -1,0 +1,15 @@
+{
+  "name": "@dice/app-predetermined-roll",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Predetermined roll showcase: predict natural results and shift face mappings to requested values.",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/determinism": "*",
+    "@dice/engine": "*",
+    "@dice/input": "*",
+    "@dice/ui": "*"
+  }
+}

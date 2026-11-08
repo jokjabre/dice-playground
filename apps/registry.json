@@ -33,7 +33,7 @@
     "description": "Tune gravity, materials, damping, mass, and solver settings.",
     "path": "apps/demos/physics-lab",
     "url": "apps/demos/physics-lab/",
-    "status": "planned"
+    "status": "live"
   },
   {
     "id": "predetermined-roll",
@@ -42,7 +42,7 @@
     "description": "Predict natural results and shift face mappings to requested values.",
     "path": "apps/demos/predetermined-roll",
     "url": "apps/demos/predetermined-roll/",
-    "status": "planned"
+    "status": "live"
   },
   {
     "id": "dice-visual-lab",
@@ -51,7 +51,7 @@
     "description": "Explore chamfer, radius, labels, colors, and face mappings.",
     "path": "apps/demos/dice-visual-lab",
     "url": "apps/demos/dice-visual-lab/",
-    "status": "planned"
+    "status": "live"
   },
   {
     "id": "yamb",
@@ -60,6 +60,6 @@
     "description": "Scorecard dice game built on the engine.",
     "path": "apps/games/yamb",
     "url": "apps/games/yamb/",
-    "status": "planned"
+    "status": "live"
   }
 ]

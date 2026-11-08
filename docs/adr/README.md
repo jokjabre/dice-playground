@@ -20,7 +20,7 @@ proposed decisions and full context are in
 | ADR-012 | Deploy multiple apps to GitHub Pages | Proposed |
 | ADR-013 | Facade first, public subpaths allowed | Proposed |
 | ADR-014 | Organize apps as sandbox, demos, and games | Proposed |
-| ADR-015 | Yamb uses a confirmed variant | Proposed |
+| ADR-015 | Yamb uses a confirmed variant | Accepted ([ADR-015-yamb-variant.md](ADR-015-yamb-variant.md)) |
 
 New stable ADRs should be added here as numbered files, for example
 `ADR-016-<slug>.md`, and linked from this index.

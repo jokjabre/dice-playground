@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Physics lab: tune gravity, friction, restitution, damping, die mass, and solver settings." />
+    <title>Physics Lab — Dice Playground</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="lab-header">
+        <h1>Physics Lab</h1>
+        <p class="lab-caption">
+          Make the physics adapter observable and tunable. Drag on the stage to throw.
+        </p>
+      </header>
+      <main class="lab-main">
+        <section
+          id="stage"
+          class="lab-stage"
+          data-testid="stage"
+          aria-label="3D dice stage. Drag or flick to throw the dice."
+        ></section>
+        <aside class="lab-panel">
+          <section
+            id="controls-host"
+            class="lab-controls"
+            aria-label="Physics lab controls"
+          ></section>
+          <section
+            id="stats-panel"
+            class="lab-info"
+            data-testid="stats-panel"
+            aria-label="Live physics statistics"
+          ></section>
+          <p class="lab-home">
+            <a href="../../../" data-testid="home-link">&larr; All apps</a>
+          </p>
+        </aside>
+      </main>
+      <p id="lab-error" class="lab-error" data-testid="fatal-error" hidden></p>
+      <div id="banner-host"></div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

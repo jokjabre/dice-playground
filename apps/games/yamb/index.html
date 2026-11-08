@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Yamb: scorecard dice game built on the dice engine." />
+    <title>Yamb — Dice Playground</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="yamb-header">
+        <h1>Yamb</h1>
+        <p class="yamb-caption" data-testid="turn-info">Set up a game to play.</p>
+      </header>
+      <main class="yamb-main">
+        <section
+          id="stage"
+          class="yamb-stage"
+          data-testid="stage"
+          aria-label="3D dice stage for the Yamb game."
+        ></section>
+        <aside class="yamb-panel">
+          <section
+            id="setup-host"
+            class="yamb-setup"
+            data-testid="setup-panel"
+            aria-label="Game setup"
+          ></section>
+          <section
+            id="tray-host"
+            class="yamb-tray"
+            data-testid="dice-tray"
+            aria-label="Dice tray. Activate a die to hold or release it."
+          ></section>
+          <section
+            id="controls-host"
+            class="yamb-controls"
+            aria-label="Yamb game controls"
+          ></section>
+          <section
+            id="scorecard-host"
+            class="yamb-scorecard"
+            data-testid="scorecard"
+            aria-label="Scorecard"
+          ></section>
+          <p class="yamb-home">
+            <a href="../../../" data-testid="home-link">&larr; All apps</a>
+          </p>
+        </aside>
+      </main>
+      <p id="yamb-status" class="yamb-status" data-testid="game-status" aria-live="polite"></p>
+      <p id="yamb-error" class="yamb-error" data-testid="fatal-error" hidden></p>
+      <div id="banner-host"></div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
