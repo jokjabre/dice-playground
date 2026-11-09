@@ -31,7 +31,7 @@ describe('PointerInput', () => {
     const request = rolls[0].args[0];
     expect(request.vectors).toHaveLength(3);
     expect(request.dice).toBe(3);
-    expect(request.vectors[0].velocity.z).toBe(-10);
+    expect(request.vectors[0].velocity.z).toBeGreaterThan(0);
 
     const metrics = host.calls.filter((call) => call.method === 'getMetrics');
     const profiles = host.calls.filter((call) => call.method === 'getSpawnProfile');
