@@ -312,7 +312,7 @@ To execute tasks in separate sessions, use the following prompts.
 ### Unified Trigger Prompt (Fast Method)
 If working in a session that has access to this plan file:
 ```text
-Please read .research/modular_engine_plan.md and execute [TASK_NUMBER] ([TASK_TITLE]).
+Please read .planning/modular_engine_plan.md and execute [TASK_NUMBER] ([TASK_TITLE]).
 Follow the exact file changes, target state, and verification steps outlined in the plan.
 Ensure the project builds/runs cleanly after completion.
 ```

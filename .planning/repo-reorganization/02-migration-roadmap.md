@@ -1179,7 +1179,7 @@ Do not list root `readme.txt` here: it moved to `legacy/readme.txt` in Phase 0 a
 - Root `README.md` with quick start, scripts, app links, and architecture overview.
 - `docs/` with final architecture, guides, and ADRs.
 - `.vscode/launch.json` with app dev URLs.
-- `.research/modular_engine_plan.md` header noting it is superseded (or leave historical with a pointer).
+- `.planning/modular_engine_plan.md` header noting it is superseded (or leave historical with a pointer).
 - `apps/registry.json` statuses to `live`.
 
 **Final audit:**

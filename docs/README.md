@@ -1,7 +1,7 @@
 # Documentation
 
 Stable architecture, guides, and architecture decision records live here.
-Migration plans and investigations remain in `.research/`.
+Migration plans and investigations remain in `.planning/`.
 
 ## Index
 
@@ -10,5 +10,5 @@ Migration plans and investigations remain in `.research/`.
 - [Architecture decision records](adr/README.md)
 
 During the reorganization, the proposed architecture and decision log are in
-`.research/repo-reorganization/`. Those documents become stable documentation as
+`.planning/repo-reorganization/`. Those documents become stable documentation as
 each package and app lands.

@@ -2,7 +2,7 @@
 
 This directory holds the stable decision log. During the reorganization, the
 proposed decisions and full context are in
-`.research/repo-reorganization/05-decisions.md`.
+`.planning/repo-reorganization/05-decisions.md`.
 
 | ADR | Decision | Status |
 | :--- | :--- | :--- |

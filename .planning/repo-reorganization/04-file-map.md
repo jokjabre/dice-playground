@@ -203,8 +203,8 @@ After the move, `legacy/dice/index.html` still resolves:
 | `libs/three.min copy.js` | — | Delete duplicate. |
 | `libs/cannon.min.js` | — | Replace with `cannon-es` npm dependency. |
 | `.vscode/launch.json` | Updated launch configs | Legacy at `/legacy/dice/`, apps at their dev URLs. |
-| `.research/modular_engine_plan.md` | Keep as historical | Mark superseded in a later docs pass. |
-| `.research/repo-reorganization/*` | New plan docs | This plan set. |
+| `.planning/modular_engine_plan.md` | Keep as historical | Mark superseded in a later docs pass. |
+| `.planning/repo-reorganization/*` | New plan docs | This plan set. |
 | — | `package.json` | Workspaces, scripts. |
 | — | `package-lock.json` | npm lockfile. |
 | — | `.nvmrc` | Node 22 LTS. |
@@ -261,8 +261,8 @@ Do not port:
 
 Keep as historical:
 
-- `.research/modular_engine_plan.md` with a superseded note.
-- `.research/repo-reorganization/*` as the current plan.
+- `.planning/modular_engine_plan.md` with a superseded note.
+- `.planning/repo-reorganization/*` as the current plan.
 
 ---
 
@@ -299,5 +299,5 @@ Keep as historical:
 | Yamb scoring, turns, scorecard | `apps/games/yamb` |
 | Demo layout/copy/theme | The demo app |
 | Build/deploy config | `tools/`, `.github/workflows/` |
-| Investigation or migration plan | `.research/` |
+| Investigation or migration plan | `.planning/` |
 | Stable architecture/guide | `docs/` |

@@ -39,14 +39,14 @@ packages/   Engine libraries, added phase by phase.
 apps/       Sandbox, demos, games, and landing page.
 tools/      Shared Vite, build, registry, and check scripts.
 docs/       Stable architecture guides and ADR index.
-.research/  Plans and migration notes.
+.planning/  Plans and migration notes.
 legacy/     Frozen pre-reorganization demo.
 ```
 
 ## Documentation
 
-- [Migration roadmap](.research/repo-reorganization/02-migration-roadmap.md)
-- [Target architecture](.research/repo-reorganization/01-architecture.md)
+- [Migration roadmap](.planning/repo-reorganization/02-migration-roadmap.md)
+- [Target architecture](.planning/repo-reorganization/01-architecture.md)
 - [Docs index](docs/README.md)
 
 ## Status

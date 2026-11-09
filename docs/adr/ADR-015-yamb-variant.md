@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-11-08
-**Context:** See `.research/repo-reorganization/05-decisions.md` (ADR-015,
+**Context:** See `.planning/repo-reorganization/05-decisions.md` (ADR-015,
 planning decision log). Yamb has multiple regional variants. This ADR
 fixes the one variant the Dice Playground Yamb app ships. Scoring
 fixtures in `apps/games/yamb/test/scoring.test.js` are derived from the

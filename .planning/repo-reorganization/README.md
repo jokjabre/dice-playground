@@ -3,7 +3,7 @@
 **Status:** Proposed — planning only, no code moved yet
 **Date:** 2026-11-06
 **Scope:** Restructure the entire repository into a decoupled engine + content + apps layout, with room for focused demos and real games.
-**Supersedes:** `.research/modular_engine_plan.md` (kept as historical implementation record)
+**Supersedes:** `.planning/modular_engine_plan.md` (kept as historical implementation record)
 
 ---
 
@@ -40,7 +40,7 @@ The target is not "more folders". The target is **one reason to change per packa
 | Game rules | Game-specific rules live in each game app; generic dice helpers live in `@dice/rules`. |
 | Determinism | Optional `@dice/determinism` package for predetermined rolls and face mapping. |
 | First targeted demo | Enclosure gallery (box / sphere / cylinder). |
-| Documentation | Plans and investigations in `.research/`; stable architecture and guides in `docs/`. |
+| Documentation | Plans and investigations in `.planning/`; stable architecture and guides in `docs/`. |
 | Package scope | `@dice/*`. |
 | App layout | `apps/sandbox`, `apps/demos/*`, `apps/games/*`, `apps/landing`. |
 | Content | Shared `@dice/content` presets + local content inside each app. |
@@ -94,7 +94,7 @@ dice-playground/
 │     └─ yamb/               # first real game
 ├─ tools/                    # shared Vite, build, registry and check scripts
 ├─ docs/                     # stable architecture docs, guides, ADRs
-├─ .research/                # plans, investigations, migration tracking
+├─ .planning/                # plans, investigations, migration tracking
 ├─ .github/workflows/        # CI and GitHub Pages deployment
 ├─ legacy/                   # frozen old demo + old src, deleted after parity
 ├─ package.json              # workspaces + scripts
