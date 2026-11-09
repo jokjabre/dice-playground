@@ -1,5 +1,18 @@
 export { PointerInput, distanceBetween } from './PointerInput.js';
 export {
+  ThrowVisualizer,
+  THROW_VISUALIZER_MAX_LENGTH,
+  THROW_VISUALIZER_THRESHOLD,
+  THROW_VISUALIZER_RELEASE_MS,
+  THROW_VISUALIZER_SOFT_COLOR,
+  THROW_VISUALIZER_MEDIUM_COLOR,
+  THROW_VISUALIZER_MAX_COLOR,
+  clampThrowLength,
+  throwPowerRatio,
+  throwColorForPower,
+  clampThrowPoint
+} from './ThrowVisualizer.js';
+export {
   MotionInput,
   clamp01,
   lowPass,

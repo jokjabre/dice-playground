@@ -65,5 +65,6 @@ describe('@dice/input boundaries', () => {
     expect(typeof entry.PointerInput).toBe('function');
     expect(typeof entry.MotionInput).toBe('function');
     expect(typeof entry.RaycastPicker).toBe('function');
+    expect(typeof entry.ThrowVisualizer).toBe('function');
   });
 });
