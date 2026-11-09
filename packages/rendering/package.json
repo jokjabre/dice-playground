@@ -1,0 +1,16 @@
+{
+  "name": "@dice/rendering",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend-neutral render scene with a strict Three r73 adapter.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

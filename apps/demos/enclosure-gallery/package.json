@@ -1,0 +1,14 @@
+{
+  "name": "@dice/app-enclosure-gallery",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Enclosure gallery demo: box, sphere, and cylinder physics with live switching.",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/engine": "*",
+    "@dice/input": "*",
+    "@dice/ui": "*"
+  }
+}

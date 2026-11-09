@@ -1,0 +1,7 @@
+{
+  "name": "@dice/app-landing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Landing page: registry-driven directory of sandbox, demos, and games. No engine bundle."
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@dice/physics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend-neutral physics world with a strict cannon-es adapter.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*",
+    "cannon-es": "^0.20.0"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

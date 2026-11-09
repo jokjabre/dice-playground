@@ -1,0 +1,14 @@
+{
+  "name": "@dice/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Environment-agnostic primitives for the dice engine: events, loop, RNG, math, config, and viewport metrics.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {},
+  "scripts": {
+    "test": "vitest run"
+  }
+}

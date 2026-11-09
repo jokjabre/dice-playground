@@ -1,0 +1,16 @@
+{
+  "name": "@dice/app-dice-visual-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dice visual lab: chamfer, radius, colors, materials, and face mapping previews from pure dice data.",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/dice": "*",
+    "@dice/engine": "*",
+    "@dice/enclosures": "*",
+    "@dice/input": "*",
+    "@dice/ui": "*"
+  }
+}

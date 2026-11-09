@@ -1,0 +1,118 @@
+.dice-control-panel {
+  background: var(--dice-ui-surface);
+  color: var(--dice-ui-text);
+  border: 1px solid var(--dice-ui-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dice-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--dice-ui-text-muted);
+}
+
+.dice-control-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dice-control-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--dice-ui-text-muted);
+}
+
+.dice-control-input,
+.dice-control-panel select {
+  background: var(--dice-ui-surface-solid);
+  color: var(--dice-ui-text);
+  border: 1px solid var(--dice-ui-border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+}
+
+.dice-control-button,
+.dice-toolbar-button,
+.dice-panel-toggle {
+  background: var(--dice-ui-surface-solid);
+  color: var(--dice-ui-text);
+  border: 1px solid var(--dice-ui-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+/* Disclosure header: the panel title itself is the toggle, with a
+ * chevron. Full width so the whole header row is the hit target. */
+.dice-panel-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  font-weight: 600;
+}
+
+.dice-panel-chevron {
+  flex: none;
+  width: 1em;
+  text-align: center;
+  line-height: 1;
+}
+
+.dice-control-button:hover,
+.dice-toolbar-button:hover,
+.dice-panel-toggle:hover {
+  border-color: var(--dice-ui-accent);
+}
+
+.dice-control-button:disabled,
+.dice-toolbar-button:disabled,
+.dice-control-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dice-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dice-panel-region {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* `display: flex` above would otherwise override the `hidden` attribute,
+ * so collapsed Panel regions would stay visible. */
+.dice-panel-region[hidden] {
+  display: none;
+}
+
+.dice-status {
+  color: var(--dice-ui-text-muted);
+  font-size: 13px;
+  min-height: 1.2em;
+}

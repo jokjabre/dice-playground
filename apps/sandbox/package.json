@@ -1,0 +1,15 @@
+{
+  "name": "@dice/app-sandbox",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sandbox: full multi-mode dice playground and parity target for the legacy demo.",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/determinism": "*",
+    "@dice/engine": "*",
+    "@dice/input": "*",
+    "@dice/ui": "*"
+  }
+}

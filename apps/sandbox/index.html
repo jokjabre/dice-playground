@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Sandbox: full multi-mode dice playground. Standard, continuous, and predetermined rolls." />
+    <title>Sandbox — Dice Playground</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="sandbox-header">
+        <h1>Sandbox</h1>
+        <p class="sandbox-caption">
+          Full multi-mode dice playground. Drag or flick the stage to throw.
+        </p>
+      </header>
+      <main class="sandbox-main">
+        <section
+          id="stage"
+          class="sandbox-stage"
+          data-testid="stage"
+          aria-label="3D dice stage. Drag or flick to throw the dice."
+        >
+          <!-- The banner is fixed-positioned so it always renders over the
+               viewport bottom; living inside the stage keeps drags that
+               start on the banner inside the pointer-input container. -->
+          <div id="banner-host"></div>
+        </section>
+        <aside
+          id="panel-host"
+          class="sandbox-panel"
+          aria-label="Engine options"
+        ></aside>
+      </main>
+      <p id="sandbox-error" class="sandbox-error" data-testid="fatal-error" hidden></p>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

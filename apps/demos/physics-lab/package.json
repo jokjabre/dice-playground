@@ -1,0 +1,15 @@
+{
+  "name": "@dice/app-physics-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Physics lab demo: gravity, contact materials, damping, mass, and solver tuning made observable.",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/engine": "*",
+    "@dice/input": "*",
+    "@dice/physics": "*",
+    "@dice/ui": "*"
+  }
+}

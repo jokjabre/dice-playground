@@ -1,0 +1,16 @@
+{
+  "name": "@dice/dice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure dice domain: definitions, geometry data, face mapping, entities, and styles.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/core": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}

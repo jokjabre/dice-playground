@@ -1,0 +1,151 @@
+@import '@dice/ui/styles/theme.css';
+@import '@dice/ui/styles/base.css';
+@import '@dice/ui/styles/controls.css';
+@import '@dice/ui/styles/banner.css';
+
+:root {
+  --gallery-header-gap: 8px;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--dice-ui-bg);
+  color: var(--dice-ui-text);
+  font-family: var(--dice-ui-font);
+}
+
+/* Fixed app shell: the page never scrolls. The stage owns the remaining
+ * space and the control panel scrolls internally when it overflows. */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.gallery-header {
+  padding: 12px 16px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gallery-header-gap);
+}
+
+.gallery-header h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.01em;
+}
+
+.gallery-caption {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dice-ui-text-muted);
+}
+
+.gallery-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px 16px;
+  min-height: 0;
+}
+
+.gallery-stage {
+  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--dice-ui-border);
+  background: var(--dice-ui-bg);
+  touch-action: none;
+}
+
+/* The renderer sizes its canvas from viewport metrics and writes the
+ * pixel size inline, which would otherwise drive the stage size and
+ * feedback through the resize observer. Pin the canvas to the stage box
+ * so the layout always owns the stage size and the full render stays
+ * visible. */
+.gallery-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.gallery-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  max-height: 48%;
+  overflow-y: auto;
+}
+
+.gallery-info {
+  background: var(--dice-ui-surface);
+  border: 1px solid var(--dice-ui-border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--dice-ui-text-muted);
+}
+
+.gallery-info-row {
+  display: block;
+  white-space: nowrap;
+}
+
+.gallery-info-row dt,
+.gallery-info-row dd {
+  display: inline;
+  margin: 0;
+}
+
+.gallery-info-row dt {
+  font-weight: 700;
+  color: var(--dice-ui-text);
+}
+
+.gallery-home {
+  margin: 0;
+  font-size: 13px;
+}
+
+.gallery-home a {
+  color: var(--dice-ui-accent);
+}
+
+.gallery-error {
+  margin: 8px 16px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--dice-ui-accent);
+  border-radius: 12px;
+  background: var(--dice-ui-surface);
+  font-size: 14px;
+}
+
+@media (min-width: 860px) {
+  .gallery-main {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .gallery-panel {
+    width: 320px;
+    flex: none;
+    max-height: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dice-banner,
+  .dice-banner-visible {
+    transition: none;
+  }
+}

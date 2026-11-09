@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Dice Playground: a sandbox, demos, and games built on the dice engine."
+    />
+    <title>Dice Playground</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="landing-header">
+        <h1>Dice Playground</h1>
+        <p class="landing-tagline">
+          A sandbox, focused demos, and games built on the dice engine.
+        </p>
+      </header>
+      <main id="landing-main" class="landing-main" data-testid="landing-main"></main>
+      <footer class="landing-footer">
+        <p>
+          Apps are static builds served from GitHub Pages. Each app is an
+          independent Vite build driven by <code>apps/registry.json</code>.
+        </p>
+      </footer>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

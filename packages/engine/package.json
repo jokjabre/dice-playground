@@ -1,0 +1,18 @@
+{
+  "name": "@dice/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Public facade and lifecycle owner: event bus, game loop, world, and plugins.",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/world": "*"
+  },
+  "scripts": {
+    "test": "vitest run"
+  }
+}
