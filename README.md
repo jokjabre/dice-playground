@@ -49,8 +49,3 @@ legacy/     Frozen pre-reorganization demo.
 - [Target architecture](.planning/repo-reorganization/01-architecture.md)
 - [Docs index](docs/README.md)
 
-## Status
-
-Phase 1: the legacy demo is frozen in `legacy/`, the workspace, tooling, test,
-and CI scaffolding are in place, and `@dice/core` provides the environment-
-agnostic engine primitives.
