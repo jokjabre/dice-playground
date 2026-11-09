@@ -11,7 +11,8 @@ import {
   sampleSpawnPositions,
   spawnDistance,
   spawnPosition,
-  MAX_THROW_ANGLE_DEVIATION
+  MAX_THROW_ANGLE_DEVIATION,
+  THROW_STRENGTH
 } from '../src/index.js';
 import { metrics } from './fakes.js';
 
@@ -154,8 +155,9 @@ describe('SpawnProfile throw generation (Phase 1)', () => {
       expect(hard[index].velocity.z).toBeCloseTo(vector.velocity.z * 4, 6);
 
       const horizontal = Math.hypot(vector.velocity.x, vector.velocity.y);
-      expect(horizontal / 100).toBeGreaterThanOrEqual(0.85 - 1e-9);
-      expect(horizontal / 100).toBeLessThanOrEqual(1.15 + 1e-9);
+      // Unified throw strength: velocity is boost x THROW_STRENGTH (± jitter).
+      expect(horizontal / (100 * THROW_STRENGTH)).toBeGreaterThanOrEqual(0.85 - 1e-9);
+      expect(horizontal / (100 * THROW_STRENGTH)).toBeLessThanOrEqual(1.15 + 1e-9);
       expect(vector.velocity.z).toBeCloseTo(horizontal * 0.5, 6);
 
       const dot =
@@ -257,6 +259,11 @@ describe('World throw plans use the Phase 1 generation', () => {
       for (const vector of first.vectors) {
         expect(vector.velocity.z).toBeGreaterThan(0);
         expect(isSpawnPositionInside(vector.pos, world.getMetrics(), profile)).toBe(true);
+        // Auto-generated plans keep their calibrated boost: the unified
+        // flick strength (3x) must not multiply them. Max auto boost is
+        // 4 * hypot(1000, 600) ~ 4660, so horizontal speed stays below that
+        // (plus jitter) instead of tripling toward ~14000.
+        expect(Math.hypot(vector.velocity.x, vector.velocity.y)).toBeLessThan(6000);
       }
       expect(minimumPairwiseDistance(first.vectors)).toBeGreaterThanOrEqual(
         collisionDistance - 1e-9

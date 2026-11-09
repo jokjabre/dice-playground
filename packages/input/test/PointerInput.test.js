@@ -2,7 +2,13 @@
 import { createSeededRandom } from '@dice/core';
 import { describe, expect, it } from 'vitest';
 
-import { PointerInput } from '../src/index.js';
+import {
+  THROW_STRENGTH,
+  CONTINUOUS_UPWARD_VELOCITY_RATIO,
+  DEFAULT_DIE_MASS,
+  PointerInput,
+  gestureBoost
+} from '../src/index.js';
 import {
   createFakeContainer,
   createFakeHost,
@@ -162,5 +168,280 @@ describe('PointerInput', () => {
     input.detach();
     expect(input.enabled).toBe(false);
     expect(container.listenerCount()).toBe(0);
+  });
+
+  it('applies per-die impulses in continuous mode without rolling', () => {
+    const host = createFakeHost({ mode: 'continuous' });
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      // A configured count must not invent dice in continuous mode: the
+      // impulses go to the live dice only.
+      dieCount: 5,
+      rng: createSeededRandom('pointer-continuous'),
+      now: () => now
+    });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    // Swipe down the screen: scene direction is -Y (screen Y is flipped).
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+    // No respawn path is consulted in continuous mode.
+    expect(host.calls.filter((call) => call.method === 'getSpawnProfile')).toHaveLength(0);
+
+    const impulses = host.calls.filter((call) => call.method === 'applyImpulse');
+    expect(impulses).toHaveLength(3);
+    // Across all dice: every live die receives exactly one impulse.
+    expect(impulses.map((call) => call.args[0])).toEqual([
+      ['die-1'],
+      ['die-2'],
+      ['die-3']
+    ]);
+
+    const magnitudes = new Set();
+    const directions = new Set();
+    for (const call of impulses) {
+      const impulse = call.args[1];
+      // No projected world point yet (Phase 4): applied at the centre of mass.
+      expect(call.args[2]).toBeUndefined();
+      expect(Number.isFinite(impulse.x)).toBe(true);
+      expect(Number.isFinite(impulse.y)).toBe(true);
+      expect(Number.isFinite(impulse.z)).toBe(true);
+      // Directional impulse along the swipe with a steep upward pop.
+      expect(impulse.y).toBeLessThan(0);
+      expect(impulse.z).toBeGreaterThan(0);
+      expect(impulse.z).toBeCloseTo(
+        Math.hypot(impulse.x, impulse.y) * CONTINUOUS_UPWARD_VELOCITY_RATIO,
+        6
+      );
+      // Mass-scaled and strength-multiplied: impulse / mass is the
+      // intended Δv (boost x strength), not boost / mass. An unscaled
+      // impulse would move a mass-300 die by only ~1 unit.
+      const boost = gestureBoost(200, 200);
+      const deltaV = Math.hypot(impulse.x, impulse.y) / DEFAULT_DIE_MASS;
+      const expectedDeltaV = boost * THROW_STRENGTH;
+      expect(deltaV).toBeGreaterThanOrEqual(expectedDeltaV * 0.85);
+      expect(deltaV).toBeLessThanOrEqual(expectedDeltaV * 1.15);
+      expect(deltaV).toBeGreaterThan(500);
+      magnitudes.add(Number(Math.hypot(impulse.x, impulse.y, impulse.z).toFixed(6)));
+      directions.add(Number(Math.atan2(impulse.x, impulse.y).toFixed(6)));
+    }
+    // Varied directions and magnitudes per die (randomized torque/tumble).
+    expect(magnitudes.size).toBeGreaterThan(1);
+    expect(directions.size).toBeGreaterThan(1);
+    input.detach();
+  });
+
+  it('still rolls (and never impulses) in standard mode', () => {
+    const host = createFakeHost({ mode: 'standard' });
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-standard'),
+      now: () => now
+    });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    expect(host.calls.filter((call) => call.method === 'applyImpulse')).toHaveLength(0);
+    input.detach();
+  });
+
+  it('scales continuous impulses by the configured dieMass', () => {
+    const run = (/** @type {Record<string, any>} */ options) => {
+      const host = createFakeHost({ mode: 'continuous' });
+      const container = createFakeContainer();
+      let now = 1000;
+      const input = new PointerInput({
+        container,
+        rng: createSeededRandom('pointer-die-mass'),
+        now: () => now,
+        ...options
+      });
+      input.attach(host);
+      container.dispatch('mousedown', mouseEvent(100, 100));
+      now += 200;
+      container.dispatch('mouseup', mouseEvent(100, 300));
+      input.detach();
+      return host.calls
+        .filter((call) => call.method === 'applyImpulse')
+        .map((call) => call.args[1]);
+    };
+
+    const defaultImpulses = run({});
+    const lightImpulses = run({ dieMass: 100 });
+    expect(lightImpulses).toHaveLength(defaultImpulses.length);
+    // Same seed, so the only difference is the mass scale (300 -> 100).
+    lightImpulses.forEach((impulse, index) => {
+      expect(impulse.x).toBeCloseTo(defaultImpulses[index].x / 3, 6);
+      expect(impulse.y).toBeCloseTo(defaultImpulses[index].y / 3, 6);
+      expect(impulse.z).toBeCloseTo(defaultImpulses[index].z / 3, 6);
+    });
+  });
+
+  it('honours the unified throw-strength setting in continuous mode', () => {
+    const run = (/** @type {Record<string, any>} */ options) => {
+      const host = createFakeHost({ mode: 'continuous' });
+      const container = createFakeContainer();
+      let now = 1000;
+      const input = new PointerInput({
+        container,
+        rng: createSeededRandom('pointer-continuous-tune'),
+        now: () => now,
+        ...options
+      });
+      input.attach(host);
+      container.dispatch('mousedown', mouseEvent(100, 100));
+      now += 200;
+      container.dispatch('mouseup', mouseEvent(100, 300));
+      input.detach();
+      return host.calls
+        .filter((call) => call.method === 'applyImpulse')
+        .map((call) => call.args[1]);
+    };
+
+    const [defaultImpulse] = run({});
+    const [strongImpulse] = run({ throwStrength: 6 });
+    // Double the default strength (3 -> 6), same seed: double the impulse.
+    expect(strongImpulse.x).toBeCloseTo(defaultImpulse.x * 2, 6);
+    expect(strongImpulse.z).toBeCloseTo(defaultImpulse.z * 2, 6);
+
+    const [steepImpulse] = run({ continuousUpwardRatio: 3 });
+    // Same horizontal impulse, double the upward ratio (1.5 -> 3).
+    expect(steepImpulse.x).toBeCloseTo(defaultImpulse.x, 6);
+    expect(steepImpulse.z).toBeCloseTo(defaultImpulse.z * 2, 6);
+  });
+
+  it('applies the same throw-strength setting to standard throws', () => {
+    const run = (/** @type {Record<string, any>} */ options) => {
+      const host = createFakeHost({ mode: 'standard' });
+      const container = createFakeContainer();
+      let now = 1000;
+      const input = new PointerInput({
+        container,
+        rng: createSeededRandom('pointer-standard-strength'),
+        now: () => now,
+        ...options
+      });
+      input.attach(host);
+      container.dispatch('mousedown', mouseEvent(100, 100));
+      now += 200;
+      container.dispatch('mouseup', mouseEvent(100, 300));
+      input.detach();
+      const rolls = host.calls.filter((call) => call.method === 'roll');
+      expect(rolls).toHaveLength(1);
+      return rolls[0].args[0].vectors;
+    };
+
+    const defaultVectors = run({});
+    const strongVectors = run({ throwStrength: 6 });
+    // Same seed: doubling the one throw-strength setting doubles every
+    // standard-throw velocity component, exactly as in continuous mode.
+    expect(strongVectors).toHaveLength(defaultVectors.length);
+    strongVectors.forEach((vector, index) => {
+      expect(vector.velocity.x).toBeCloseTo(defaultVectors[index].velocity.x * 2, 6);
+      expect(vector.velocity.y).toBeCloseTo(defaultVectors[index].velocity.y * 2, 6);
+      expect(vector.velocity.z).toBeCloseTo(defaultVectors[index].velocity.z * 2, 6);
+    });
+  });
+
+  it('reads the host mode live so a switch after attach takes effect', () => {
+    const host = createFakeHost({ mode: 'standard' });
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-live-mode'),
+      now: () => now
+    });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    expect(host.calls.filter((call) => call.method === 'applyImpulse')).toHaveLength(0);
+
+    host.mode = 'continuous';
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    expect(
+      host.calls.filter((call) => call.method === 'applyImpulse')
+    ).toHaveLength(3);
+    input.detach();
+  });
+
+  it('does nothing in continuous mode when there are no live dice', () => {
+    const host = createFakeHost({ mode: 'continuous', diceIds: [] });
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      dieCount: 5,
+      rng: createSeededRandom('pointer-continuous-empty'),
+      now: () => now
+    });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    // In particular it must not fall back to a respawning roll.
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+    expect(host.calls.filter((call) => call.method === 'applyImpulse')).toHaveLength(0);
+    input.detach();
+  });
+
+  it('ignores sub-threshold moves in continuous mode', () => {
+    const host = createFakeHost({ mode: 'continuous' });
+    const container = createFakeContainer();
+    const input = new PointerInput({ container });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mouseup', mouseEvent(101, 101));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+    expect(host.calls.filter((call) => call.method === 'applyImpulse')).toHaveLength(0);
+    input.detach();
+  });
+
+  it('produces deterministic continuous impulses for a fixed seed', () => {
+    const run = () => {
+      const host = createFakeHost({ mode: 'continuous' });
+      const container = createFakeContainer();
+      let now = 1000;
+      const input = new PointerInput({
+        container,
+        rng: createSeededRandom('pointer-continuous-det'),
+        now: () => now
+      });
+      input.attach(host);
+      container.dispatch('mousedown', mouseEvent(100, 100));
+      now += 200;
+      container.dispatch('mouseup', mouseEvent(100, 300));
+      input.detach();
+      return host.calls
+        .filter((call) => call.method === 'applyImpulse')
+        .map((call) => call.args[1]);
+    };
+
+    const first = run();
+    const second = run();
+    expect(first).toHaveLength(3);
+    expect(second).toEqual(first);
   });
 });

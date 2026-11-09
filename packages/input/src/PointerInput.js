@@ -1,6 +1,7 @@
 import { createBrowserRandom } from '@dice/core';
 
 import {
+  buildContinuousImpulses,
   buildThrowVectors,
   evaluateGesture,
   getPointerCoords,
@@ -19,6 +20,8 @@ import {
  * @property {(ndc: { x: number, y: number }) => any} pick
  * @property {() => Record<string, any>} getMetrics
  * @property {() => Record<string, any>} getSpawnProfile
+ * @property {'standard'|'continuous'|string|(() => string)} [mode] Live engine mode, read on every flick so runtime mode switches take effect immediately.
+ * @property {() => string} [getMode] Alternative live engine mode getter.
  * @property {{ emit: (name: string, payload: any) => void }} events
  */
 
@@ -27,6 +30,16 @@ import {
  * @property {any} [container]
  * @property {number} [dieCount]
  * @property {number} [dieInertia]
+ * @property {number} [dieMass] Mass of one die, used to scale continuous-mode
+ * impulses so the velocity change equals the throw velocity. Defaults to
+ * the physics/world default mass (see `DEFAULT_DIE_MASS` in gesture.js).
+ * @property {number} [throwStrength] The one throw-strength setting for
+ * every flick, in both standard and continuous mode (see `THROW_STRENGTH`
+ * in gesture.js). The launch angle still differs per mode: spawned dice
+ * lob at the throw ratio, resting dice pop steeply off the floor.
+ * @property {number} [continuousUpwardRatio] Continuous-mode upward velocity
+ * as a fraction of the horizontal speed (see
+ * `CONTINUOUS_UPWARD_VELOCITY_RATIO` in gesture.js).
  * @property {any} [rng]
  * @property {() => number} [now]
  * @property {boolean} [interruptRolls] When true, a flick passes
@@ -37,6 +50,13 @@ import {
 /**
  * Pointer (mouse/touch) flick input. Converts drag gestures into throw vectors
  * and delegates the roll to the host. It never mutates dice bodies directly.
+ *
+ * In standard mode a flick delegates a fresh roll to the host. In
+ * continuous mode (`host.mode === 'continuous'`) a flick instead applies a
+ * per-die impulse — directional, with an upward pop and randomized
+ * direction/magnitude variance — to every active die through
+ * `host.applyImpulse()` and never triggers `host.roll()`, so the live dice
+ * are neither cleared nor respawned.
  *
  * A gesture starts with a press inside the container and completes on the
  * next pointer-up, even when the finger or cursor has left the container:
@@ -56,6 +76,15 @@ export class PointerInput {
 
   /** @type {number} */
   #dieInertia;
+
+  /** @type {number|undefined} */
+  #dieMass;
+
+  /** @type {number|undefined} */
+  #throwStrength;
+
+  /** @type {number|undefined} */
+  #continuousUpwardRatio;
 
   /** @type {any|null} */
   #rng;
@@ -110,6 +139,10 @@ export class PointerInput {
     this.#container = options.container ?? null;
     this.#dieCount = options.dieCount ?? null;
     this.#dieInertia = options.dieInertia ?? 13;
+    this.#dieMass = options.dieMass ?? undefined;
+    this.#throwStrength = options.throwStrength ?? undefined;
+    this.#continuousUpwardRatio =
+      options.continuousUpwardRatio ?? undefined;
     this.#rng = options.rng ?? null;
     this.#now = options.now ?? (() => Date.now());
     this.interruptRolls = options.interruptRolls ?? false;
@@ -213,6 +246,58 @@ export class PointerInput {
   }
 
   /**
+   * Read the host's live engine mode. `DiceEngine` exposes it as a string
+   * getter; a function-valued or `getMode()` host is also accepted. The mode
+   * is read on every flick, never cached at attach time, so switching the
+   * engine between standard and continuous takes effect immediately.
+   *
+   * @returns {string|null}
+   */
+  #resolveHostMode() {
+    const host = this.#host;
+    if (!host) return null;
+    if (typeof host.mode === 'function') {
+      const mode = host.mode();
+      return typeof mode === 'string' ? mode : null;
+    }
+    if (typeof host.mode === 'string') return host.mode;
+    if (typeof host.getMode === 'function') {
+      const mode = host.getMode();
+      return typeof mode === 'string' ? mode : null;
+    }
+    return null;
+  }
+
+  /**
+   * Dispatch a continuous-mode flick as per-die impulses. Every active die
+   * receives its own impulse (see {@link buildContinuousImpulses}); the
+   * configured die count and spawn profile are irrelevant here because
+   * nothing is respawned, and `host.roll()` is never called.
+   *
+   * @param {{ normalized: { x: number, y: number }, boost: number }} gesture
+   * @param {string[]} diceIds
+   * @returns {void}
+   */
+  #dispatchContinuousImpulses(gesture, diceIds) {
+    if (typeof this.#host?.applyImpulse !== 'function') return;
+    if (!Array.isArray(diceIds) || diceIds.length === 0) return;
+
+    const impulses = buildContinuousImpulses({
+      direction: gesture.normalized,
+      boost: gesture.boost,
+      ids: diceIds,
+      rng: this.#resolveRng(),
+      dieMass: this.#dieMass,
+      throwStrength: this.#throwStrength,
+      upwardRatio: this.#continuousUpwardRatio
+    });
+    for (const entry of impulses) {
+      if (!entry.id) continue;
+      this.#host.applyImpulse([entry.id], entry.impulse, entry.worldPoint);
+    }
+  }
+
+  /**
    * @param {any} event
    * @returns {void}
    */
@@ -238,10 +323,19 @@ export class PointerInput {
     const gesture = evaluateGesture({ start, end, durationMs, metrics });
     if (!gesture.isSwipe) return;
 
+    const diceIds = this.#host.getDiceIds ? this.#host.getDiceIds() : [];
+
+    // Continuous mode: impulse the live dice in place. No spawn profile,
+    // no throw vectors, and no roll — the dice are not cleared or respawned,
+    // and a configured die count must not invent dice that do not exist.
+    if (this.#resolveHostMode() === 'continuous') {
+      this.#dispatchContinuousImpulses(gesture, diceIds);
+      return;
+    }
+
     const spawnProfile = this.#host.getSpawnProfile
       ? this.#host.getSpawnProfile()
       : null;
-    const diceIds = this.#host.getDiceIds ? this.#host.getDiceIds() : [];
     const count =
       this.#dieCount ?? (diceIds.length > 0 ? diceIds.length : 6);
     if (count <= 0) return;
@@ -253,7 +347,9 @@ export class PointerInput {
       rng: this.#resolveRng(),
       metrics,
       spawnProfile,
-      dieInertia: this.#dieInertia
+      dieInertia: this.#dieInertia,
+      // Same single throw-strength setting as continuous mode.
+      throwStrength: this.#throwStrength
     });
     if (vectors.length === 0) return;
 

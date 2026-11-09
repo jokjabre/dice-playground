@@ -716,7 +716,11 @@ export class World {
       rng: planRng,
       metrics,
       spawnProfile: this.#spawnProfile,
-      dieInertia: this.#spawnProfile?.dieInertia ?? 13
+      dieInertia: this.#spawnProfile?.dieInertia ?? 13,
+      // Auto-generated plans: this boost ((rnd + 3) * distance) is already
+      // calibrated to the legacy throw velocities, so the unified flick
+      // strength (THROW_STRENGTH) must not multiply it again.
+      strength: 1
     });
 
     return {

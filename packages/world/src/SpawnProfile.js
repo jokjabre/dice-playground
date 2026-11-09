@@ -47,6 +47,14 @@ export const THROW_SPEED_JITTER = 0.15;
 /** Upward velocity as a fraction of the jittered horizontal speed. */
 export const UPWARD_VELOCITY_RATIO = 0.5;
 
+/**
+ * Unified throw strength: multiplier on the throw boost for the horizontal
+ * velocity change, shared by every flick throw (standard and continuous).
+ * Kept in sync with the mirrored constant in the input package's
+ * gesture.js (the packages cannot import each other).
+ */
+export const THROW_STRENGTH = 3;
+
 /** Margin added to the die diameter for the spawn collision distance. */
 export const SPAWN_COLLISION_MARGIN = 10;
 
@@ -735,10 +743,12 @@ export function spawnPosition(direction, rng, metrics, profile, options) {
  * velocity along the throw direction, rotated within the ±10° cone and
  * jittered by up to ±15% in speed, plus an upward `Vz` (half the jittered
  * horizontal speed) so dice lob upward before gravity curves them down.
- * Angular spin on all three axes scales with the throw power, and the
- * initial orientation axis is randomized per die.
+ * The horizontal speed is `boost × strength` (default
+ * {@link THROW_STRENGTH}, the unified flick strength). Angular spin on all
+ * three axes scales with the throw power, and the initial orientation axis
+ * is randomized per die.
  *
- * @param {{ direction: { x: number, y: number }, boost: number, count?: number, dice?: number, rng?: any, metrics?: Record<string, any>|null, spawnProfile?: Partial<SpawnProfile>|Record<string, any>|null, profile?: Partial<SpawnProfile>|Record<string, any>|null, dieInertia?: number, origin?: any, spawnOrigin?: any, start?: any, center?: any, dieRadius?: number, collisionDistance?: number, minSeparation?: number, spawnHeight?: number, zSpawn?: number, spawnZ?: number, existing?: any[], placed?: any[] }} input
+ * @param {{ direction: { x: number, y: number }, boost: number, count?: number, dice?: number, rng?: any, metrics?: Record<string, any>|null, spawnProfile?: Partial<SpawnProfile>|Record<string, any>|null, profile?: Partial<SpawnProfile>|Record<string, any>|null, dieInertia?: number, strength?: number, throwStrength?: number, origin?: any, spawnOrigin?: any, start?: any, center?: any, dieRadius?: number, collisionDistance?: number, minSeparation?: number, spawnHeight?: number, zSpawn?: number, spawnZ?: number, existing?: any[], placed?: any[] }} input
  * @returns {Array<{ pos: { x: number, y: number, z: number }, velocity: { x: number, y: number, z: number }, angle: { x: number, y: number, z: number }, axis: { x: number, y: number, z: number, a: number } }>}
  */
 export function buildThrowVectors(input) {
@@ -748,6 +758,8 @@ export function buildThrowVectors(input) {
   const rng = input.rng;
   const boost = finiteNumber(input.boost) ?? 0;
   const magnitude = Math.abs(boost);
+  const strength =
+    firstFinitePositive([input.throwStrength, input.strength]) ?? THROW_STRENGTH;
   const direction = normalizeThrowDirection(input.direction);
   const dieInertia =
     finiteNumber(input.dieInertia) !== null && (finiteNumber(input.dieInertia) ?? 0) > 0
@@ -764,12 +776,12 @@ export function buildThrowVectors(input) {
 
   /** @type {ReturnType<typeof buildThrowVectors>} */
   const vectors = [];
-  const spinScale = dieInertia + magnitude * 0.02;
+  const spinScale = dieInertia + magnitude * strength * 0.02;
 
   for (let i = 0; i < count; i += 1) {
     const vec = randomizeDirection(direction, rng);
     const speedFactor = 1 + (nextRandom(rng) * 2 - 1) * THROW_SPEED_JITTER;
-    const horizontalSpeed = magnitude * speedFactor;
+    const horizontalSpeed = magnitude * speedFactor * strength;
     vectors.push({
       pos: positions[i],
       velocity: {

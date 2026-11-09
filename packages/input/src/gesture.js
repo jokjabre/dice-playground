@@ -68,11 +68,40 @@ export const THROW_SPEED_JITTER = 0.15;
 /** Upward velocity as a fraction of the jittered horizontal speed. */
 export const UPWARD_VELOCITY_RATIO = 0.5;
 
+/**
+ * Unified throw strength: multiplier on the throw boost for the horizontal
+ * velocity change. This is the one strength setting for every flick throw
+ * — standard-mode throw vectors (`buildThrowVectors`) and continuous-mode
+ * impulses (`buildContinuousImpulses`) both use it, so a flick always
+ * launches with the same power regardless of mode. It must stay well above
+ * 1: at strength 1 a resting die barely skids along the floor instead of
+ * being thrown. Kept in sync with the mirrored constant in the world
+ * package's SpawnProfile (the packages cannot import each other).
+ */
+export const THROW_STRENGTH = 3;
+
+/**
+ * Continuous-mode upward velocity as a fraction of the jittered horizontal
+ * speed (launch angle ~56° above horizontal). Much steeper than
+ * {@link UPWARD_VELOCITY_RATIO}: at this ratio a typical flick (boost
+ * ~380) gives Vz ~1700, lifting the dice ~500 units off the floor before
+ * gravity curves them down, instead of ~6 units at the throw ratio.
+ */
+export const CONTINUOUS_UPWARD_VELOCITY_RATIO = 1.5;
+
 /** Margin added to the die diameter for the spawn collision distance. */
 export const SPAWN_COLLISION_MARGIN = 10;
 
 /** Die radius assumed when metrics carry no scale (the default `scale: 45`). */
 export const DEFAULT_SPAWN_DIE_RADIUS = 40.5;
+
+/**
+ * Die mass assumed for continuous-mode impulses. Parity with the physics
+ * `DEFAULT_MASS` / world default mass (this package cannot import them):
+ * `applyImpulse` divides by mass, so an impulse must be scaled by the mass
+ * for the resulting velocity change to equal the intended throw velocity.
+ */
+export const DEFAULT_DIE_MASS = 300;
 
 /**
  * Read one random value from a {@link RandomSource} or a legacy-style
@@ -812,10 +841,12 @@ export function spawnPosition(direction, rng, metrics, spawnProfile, options) {
  * velocity along the throw direction, rotated within the ±10° cone and
  * jittered by up to ±15% in speed, plus an upward `Vz` (half the jittered
  * horizontal speed) so dice lob upward before gravity curves them down.
- * Angular spin on all three axes scales with the throw power, and the
- * initial orientation axis is randomized per die.
+ * The horizontal speed is `boost × strength` (default
+ * {@link THROW_STRENGTH}, the unified flick strength shared with
+ * continuous mode). Angular spin on all three axes scales with the throw
+ * power, and the initial orientation axis is randomized per die.
  *
- * @param {{ direction: Pointer2D, boost: number, count?: number, dice?: number, rng?: any, metrics?: MetricsLike | null, spawnProfile?: SpawnProfileLike | null, profile?: SpawnProfileLike | null, dieInertia?: number, origin?: any, spawnOrigin?: any, start?: any, center?: any, dieRadius?: number, collisionDistance?: number, minSeparation?: number, spawnHeight?: number, zSpawn?: number, spawnZ?: number, existing?: any[], placed?: any[] }} input
+ * @param {{ direction: Pointer2D, boost: number, count?: number, dice?: number, rng?: any, metrics?: MetricsLike | null, spawnProfile?: SpawnProfileLike | null, profile?: SpawnProfileLike | null, dieInertia?: number, strength?: number, throwStrength?: number, origin?: any, spawnOrigin?: any, start?: any, center?: any, dieRadius?: number, collisionDistance?: number, minSeparation?: number, spawnHeight?: number, zSpawn?: number, spawnZ?: number, existing?: any[], placed?: any[] }} input
  * @returns {Array<{ pos: { x: number, y: number, z: number }, velocity: { x: number, y: number, z: number }, angle: { x: number, y: number, z: number }, axis: { x: number, y: number, z: number, a: number } }>}
  */
 export function buildThrowVectors(input) {
@@ -825,6 +856,8 @@ export function buildThrowVectors(input) {
   const rng = input.rng;
   const boost = finiteNumber(input.boost) ?? 0;
   const magnitude = Math.abs(boost);
+  const strength =
+    firstFinitePositive([input.throwStrength, input.strength]) ?? THROW_STRENGTH;
   const direction = normalizeThrowDirection(input.direction);
   const dieInertia =
     finiteNumber(input.dieInertia) !== null && (finiteNumber(input.dieInertia) ?? 0) > 0
@@ -840,12 +873,12 @@ export function buildThrowVectors(input) {
   });
 
   const vectors = [];
-  const spinScale = dieInertia + magnitude * 0.02;
+  const spinScale = dieInertia + magnitude * strength * 0.02;
 
   for (let i = 0; i < count; i += 1) {
     const vec = randomizeDirection(direction, rng);
     const speedFactor = 1 + (nextRandom(rng) * 2 - 1) * THROW_SPEED_JITTER;
-    const horizontalSpeed = magnitude * speedFactor;
+    const horizontalSpeed = magnitude * speedFactor * strength;
     vectors.push({
       pos: positions[i],
       velocity: {
@@ -868,6 +901,94 @@ export function buildThrowVectors(input) {
   }
   return vectors;
 }
+
+/**
+ * Build one impulse per active die for a continuous-mode flick.
+ *
+ * Continuous mode never clears or respawns dice, so — unlike
+ * {@link buildThrowVectors} — this returns no spawn positions, velocities
+ * to assign, or spin state. It derives one impulse per die from the throw
+ * vector instead: the horizontal component follows the throw direction
+ * rotated within the same ±10° cone and jittered by up to ±15% in speed
+ * (see {@link randomizeDirection} and {@link THROW_SPEED_JITTER}), and the
+ * upward component is a fixed fraction of the jittered horizontal speed
+ * ({@link CONTINUOUS_UPWARD_VELOCITY_RATIO}), so every die pops upward
+ * (`+Z`) before gravity curves it down. The per-die cone deviation and
+ * speed jitter also vary each impulse in direction and magnitude, which is
+ * how the dice tumble differently when the impulses are applied.
+ *
+ * The horizontal velocity change is `boost × strength` (default strength
+ * {@link THROW_STRENGTH}, the unified flick strength shared with
+ * {@link buildThrowVectors}). Each impulse is then scaled by the die mass
+ * (`dieMass`, default {@link DEFAULT_DIE_MASS}): physics divides an
+ * impulse by mass, so `mass × Δv` is required for the resulting velocity
+ * change to equal the intended Δv. An unscaled impulse would change the
+ * velocity by only `boost / mass` (a few units at the default mass) and a
+ * flick would be imperceptible. An explicit `scale`/`impulseScale`
+ * overrides the mass scaling (the strength multiplier still applies).
+ *
+ * The optional `worldPoint` is passed through unchanged (as a fresh
+ * `{ x, y, z }`) to every entry so a caller can apply the impulses at a
+ * shared application point through `host.applyImpulse(ids, impulse,
+ * worldPoint)`; when it is not supplied the entries carry no `worldPoint`
+ * and the impulses are applied at each die's centre of mass.
+ *
+ * @param {{ direction?: Pointer2D, boost?: number, count?: number, dice?: number, ids?: string[], diceIds?: string[], rng?: any, scale?: number, impulseScale?: number, dieMass?: number, mass?: number, strength?: number, throwStrength?: number, upwardRatio?: number, worldPoint?: any, origin?: any }} [input]
+ * @returns {Array<{ id: string|undefined, impulse: { x: number, y: number, z: number }, worldPoint?: { x: number, y: number, z: number } }>}
+ */
+export function buildContinuousImpulses(input = {}) {
+  const ids = Array.isArray(input.ids)
+    ? input.ids
+    : Array.isArray(input.diceIds)
+      ? input.diceIds
+      : null;
+  const count = ids
+    ? ids.length
+    : Math.max(0, Math.floor(input.count ?? input.dice ?? 0));
+  const rng = input.rng;
+  const boost = finiteNumber(input.boost) ?? 0;
+  const magnitude = Math.abs(boost);
+  const scale =
+    firstFinitePositive([
+      input.impulseScale,
+      input.scale,
+      input.dieMass,
+      input.mass
+    ]) ?? DEFAULT_DIE_MASS;
+  const strength =
+    firstFinitePositive([input.throwStrength, input.strength]) ?? THROW_STRENGTH;
+  const upwardRatio =
+    finiteNumber(input.upwardRatio) ?? CONTINUOUS_UPWARD_VELOCITY_RATIO;
+  const direction = normalizeThrowDirection(input.direction);
+  const normalizedPoint =
+    normalizeOriginCandidate(input.worldPoint ?? input.origin) ?? undefined;
+  const worldPoint = normalizedPoint
+    ? { x: normalizedPoint.x, y: normalizedPoint.y, z: normalizedPoint.z ?? 0 }
+    : undefined;
+
+  /** @type {Array<{ id: string|undefined, impulse: { x: number, y: number, z: number }, worldPoint?: { x: number, y: number, z: number } }>} */
+  const impulses = [];
+  for (let i = 0; i < count; i += 1) {
+    const vec = randomizeDirection(direction, rng);
+    const speedFactor = 1 + (nextRandom(rng) * 2 - 1) * THROW_SPEED_JITTER;
+    const horizontalSpeed = magnitude * speedFactor * scale * strength;
+    /** @type {{ id: string|undefined, impulse: { x: number, y: number, z: number }, worldPoint?: { x: number, y: number, z: number } }} */
+    const entry = {
+      id: ids ? ids[i] : undefined,
+      impulse: {
+        x: vec.x * horizontalSpeed,
+        y: vec.y * horizontalSpeed,
+        z: horizontalSpeed * upwardRatio
+      }
+    };
+    if (worldPoint) entry.worldPoint = { ...worldPoint };
+    impulses.push(entry);
+  }
+  return impulses;
+}
+
+/** Alias for {@link buildContinuousImpulses}. */
+export const buildImpulseVectors = buildContinuousImpulses;
 
 /**
  * Map client coordinates to normalized device coordinates.

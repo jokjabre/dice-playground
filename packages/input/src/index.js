@@ -19,6 +19,8 @@ export {
   randomizeDirection,
   spawnPosition,
   buildThrowVectors,
+  buildContinuousImpulses,
+  buildImpulseVectors,
   sampleSpawnPositions,
   clampSpawnPosition,
   clampToEnclosure,
@@ -33,8 +35,11 @@ export {
   THROW_ANGLE_SPREAD,
   THROW_SPEED_JITTER,
   UPWARD_VELOCITY_RATIO,
+  THROW_STRENGTH,
+  CONTINUOUS_UPWARD_VELOCITY_RATIO,
   SPAWN_COLLISION_MARGIN,
   DEFAULT_SPAWN_DIE_RADIUS,
+  DEFAULT_DIE_MASS,
   clientToNdc,
   pointerToNdc
 } from './gesture.js';

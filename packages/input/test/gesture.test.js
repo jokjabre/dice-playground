@@ -2,7 +2,12 @@ import { createSeededRandom } from '@dice/core';
 import { describe, expect, it } from 'vitest';
 
 import {
+  CONTINUOUS_UPWARD_VELOCITY_RATIO,
+  DEFAULT_DIE_MASS,
   MAX_THROW_ANGLE_DEVIATION,
+  THROW_SPEED_JITTER,
+  THROW_STRENGTH,
+  buildContinuousImpulses,
   buildThrowVectors,
   clampSpawnPosition,
   clientToNdc,
@@ -313,9 +318,9 @@ describe('origin-anchored throw generation (Phase 1)', () => {
       expect(hard[index].velocity.z).toBeCloseTo(vector.velocity.z * 4, 6);
 
       const horizontal = Math.hypot(vector.velocity.x, vector.velocity.y);
-      // Per-die speed jitter is bounded to ±15% of the boost.
-      expect(horizontal / 100).toBeGreaterThanOrEqual(0.85 - 1e-9);
-      expect(horizontal / 100).toBeLessThanOrEqual(1.15 + 1e-9);
+      // Per-die speed jitter is bounded to ±15% of boost x throw strength.
+      expect(horizontal / (100 * THROW_STRENGTH)).toBeGreaterThanOrEqual(0.85 - 1e-9);
+      expect(horizontal / (100 * THROW_STRENGTH)).toBeLessThanOrEqual(1.15 + 1e-9);
       expect(vector.velocity.z).toBeCloseTo(horizontal * 0.5, 6);
 
       const dot =
@@ -377,6 +382,215 @@ describe('origin-anchored throw generation (Phase 1)', () => {
       true
     );
     expect(cylinder.z).toBeGreaterThanOrEqual(40.5);
+  });
+});
+
+describe('continuous impulse generation (Phase 2)', () => {
+  it('builds one varied impulse per die, deterministically for a fixed seed', () => {
+    const build = () =>
+      buildContinuousImpulses({
+        direction: { x: 0.6, y: 0.8 },
+        boost: 300,
+        ids: ['die-1', 'die-2', 'die-3', 'die-4'],
+        rng: createSeededRandom('continuous')
+      });
+    const first = build();
+
+    expect(first).toEqual(build());
+    expect(first.map((entry) => entry.id)).toEqual([
+      'die-1',
+      'die-2',
+      'die-3',
+      'die-4'
+    ]);
+    // No application point is invented when none is supplied.
+    expect(first.every((entry) => entry.worldPoint === undefined)).toBe(true);
+
+    const magnitudes = new Set();
+    const directions = new Set();
+    for (const entry of first) {
+      const { impulse } = entry;
+      expect(Number.isFinite(impulse.x)).toBe(true);
+      expect(Number.isFinite(impulse.y)).toBe(true);
+      // Upward pop scaled with the jittered horizontal speed.
+      expect(impulse.z).toBeGreaterThan(0);
+      const horizontal = Math.hypot(impulse.x, impulse.y);
+      // Steeply off the floor: Vz is 1.5x the horizontal speed, not the
+      // 0.5x throw ratio (which lifted a resting die only ~6 units).
+      expect(impulse.z).toBeCloseTo(
+        horizontal * CONTINUOUS_UPWARD_VELOCITY_RATIO,
+        6
+      );
+      // Mass-scaled and strength-multiplied: impulse / mass yields
+      // boost x strength as the Δv. Per-die speed jitter is bounded to
+      // ±15% of that.
+      const deltaV = horizontal / DEFAULT_DIE_MASS;
+      const expected = 300 * THROW_STRENGTH;
+      expect(deltaV / expected).toBeGreaterThanOrEqual(1 - THROW_SPEED_JITTER - 1e-9);
+      expect(deltaV / expected).toBeLessThanOrEqual(1 + THROW_SPEED_JITTER + 1e-9);
+      // Horizontal direction stays inside the throw cone.
+      const dot = (impulse.x * 0.6 + impulse.y * 0.8) / horizontal;
+      const deviation = Math.acos(Math.max(-1, Math.min(1, dot)));
+      expect(deviation).toBeLessThanOrEqual(MAX_THROW_ANGLE_DEVIATION + 1e-9);
+      magnitudes.add(Number(horizontal.toFixed(6)));
+      directions.add(Number(Math.atan2(impulse.x, impulse.y).toFixed(6)));
+    }
+    // Varied directions and magnitudes per die.
+    expect(magnitudes.size).toBeGreaterThan(1);
+    expect(directions.size).toBeGreaterThan(1);
+  });
+
+  it('scales impulses by the die mass so a flick is actually felt', () => {
+    // Regression: an unscaled impulse changed the velocity by only
+    // boost / mass (~1 unit at the default mass), so a continuous-mode
+    // flick was imperceptible and looked unregistered.
+    const build = (/** @type {Record<string, any>} */ extra) =>
+      buildContinuousImpulses({
+        direction: { x: 1, y: 0 },
+        boost: 400,
+        count: 1,
+        rng: createSeededRandom('continuous-mass'),
+        ...extra
+      });
+
+    // Default: Δv (impulse / DEFAULT_DIE_MASS) equals boost x strength
+    // (± jitter) horizontally, and 1.5x that upward — a typical flick
+    // (boost 400) pops at Vz ~1800 instead of skidding at Vz ~200.
+    const [defaultImpulse] = build({});
+    const defaultDeltaV =
+      Math.hypot(defaultImpulse.impulse.x, defaultImpulse.impulse.y) /
+      DEFAULT_DIE_MASS;
+    const expectedDeltaV = 400 * THROW_STRENGTH;
+    expect(defaultDeltaV).toBeGreaterThanOrEqual(expectedDeltaV * 0.85);
+    expect(defaultDeltaV).toBeLessThanOrEqual(expectedDeltaV * 1.15);
+    expect(defaultImpulse.impulse.z / DEFAULT_DIE_MASS).toBeGreaterThan(
+      defaultDeltaV
+    );
+
+    // A custom die mass scales the impulse proportionally.
+    const [lightImpulse] = build({ dieMass: 100 });
+    expect(lightImpulse.impulse.x).toBeCloseTo(defaultImpulse.impulse.x / 3, 6);
+    expect(lightImpulse.impulse.z).toBeCloseTo(defaultImpulse.impulse.z / 3, 6);
+
+    // A custom strength scales the impulse proportionally.
+    const [strongImpulse] = build({ throwStrength: 6 });
+    expect(strongImpulse.impulse.x).toBeCloseTo(defaultImpulse.impulse.x * 2, 6);
+
+    // An explicit scale overrides the mass scaling (strength still applies).
+    const [scaledImpulse] = build({ scale: 2 });
+    expect(scaledImpulse.impulse.x).toBeCloseTo(
+      (defaultImpulse.impulse.x * 2) / DEFAULT_DIE_MASS,
+      6
+    );
+  });
+
+  it('uses the one unified throw strength for standard and continuous flicks', () => {
+    const direction = { x: 0.6, y: 0.8 };
+    const boost = 300;
+
+    // Standard throws: velocity is boost x THROW_STRENGTH (± jitter).
+    const vectors = buildThrowVectors({
+      direction,
+      boost,
+      count: 4,
+      rng: createSeededRandom('unified-strength'),
+      metrics: { sceneWidth: 1000, sceneHeight: 600 },
+      spawnProfile: { mode: 'box' }
+    });
+    for (const vector of vectors) {
+      const ratio =
+        Math.hypot(vector.velocity.x, vector.velocity.y) / boost;
+      expect(ratio).toBeGreaterThanOrEqual(THROW_STRENGTH * 0.85);
+      expect(ratio).toBeLessThanOrEqual(THROW_STRENGTH * 1.15);
+    }
+
+    // Continuous impulses: Δv (impulse / mass) is the same boost x
+    // THROW_STRENGTH (± jitter) — one setting, both modes.
+    const impulses = buildContinuousImpulses({
+      direction,
+      boost,
+      count: 4,
+      rng: createSeededRandom('unified-strength')
+    });
+    for (const entry of impulses) {
+      const ratio =
+        Math.hypot(entry.impulse.x, entry.impulse.y) /
+        DEFAULT_DIE_MASS /
+        boost;
+      expect(ratio).toBeGreaterThanOrEqual(THROW_STRENGTH * 0.85);
+      expect(ratio).toBeLessThanOrEqual(THROW_STRENGTH * 1.15);
+    }
+
+    // An explicit strength of 1 reproduces the legacy boost-scale throw.
+    const legacy = buildThrowVectors({
+      direction,
+      boost,
+      count: 1,
+      rng: createSeededRandom('unified-strength'),
+      metrics: { sceneWidth: 1000, sceneHeight: 600 },
+      spawnProfile: { mode: 'box' },
+      throwStrength: 1
+    });
+    const legacyRatio = Math.hypot(legacy[0].velocity.x, legacy[0].velocity.y) / boost;
+    expect(legacyRatio).toBeGreaterThanOrEqual(0.85);
+    expect(legacyRatio).toBeLessThanOrEqual(1.15);
+  });
+
+  it('scales with the throw boost for the same seed', () => {
+    /**
+     * @param {number} boost
+     */
+    const build = (boost) =>
+      buildContinuousImpulses({
+        direction: { x: 1, y: 0 },
+        boost,
+        count: 3,
+        rng: createSeededRandom('continuous-scale')
+      });
+    const soft = build(100);
+    const hard = build(400);
+
+    soft.forEach((entry, index) => {
+      expect(hard[index].impulse.z).toBeCloseTo(entry.impulse.z * 4, 6);
+      expect(hard[index].impulse.x).toBeCloseTo(entry.impulse.x * 4, 6);
+    });
+  });
+
+  it('falls back to a count and returns nothing for no dice', () => {
+    expect(
+      buildContinuousImpulses({
+        direction: { x: 1, y: 0 },
+        boost: 100,
+        ids: [],
+        rng: createSeededRandom('continuous-empty')
+      })
+    ).toEqual([]);
+
+    const byCount = buildContinuousImpulses({
+      direction: { x: 1, y: 0 },
+      boost: 100,
+      count: 2,
+      rng: createSeededRandom('continuous-count')
+    });
+    expect(byCount).toHaveLength(2);
+    expect(byCount[0].id).toBeUndefined();
+  });
+
+  it('passes a supplied world point through to every entry', () => {
+    const entries = buildContinuousImpulses({
+      direction: { x: 1, y: 0 },
+      boost: 100,
+      ids: ['die-1', 'die-2'],
+      rng: createSeededRandom('continuous-point'),
+      worldPoint: { x: 10, y: -20, z: 300 }
+    });
+
+    expect(entries).toHaveLength(2);
+    for (const entry of entries) {
+      expect(entry.worldPoint).toEqual({ x: 10, y: -20, z: 300 });
+    }
+    // Each entry carries its own copy, not a shared object.
+    expect(entries[0].worldPoint).not.toBe(entries[1].worldPoint);
   });
 });
 
