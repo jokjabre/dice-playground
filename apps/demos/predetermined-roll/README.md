@@ -28,6 +28,9 @@ Open http://localhost:5178/apps/demos/predetermined-roll/
   and reports whether every die matched. In predict-only mode, rolls
   unforced dice and compares the result against the targets.
 - **Clear dice** — empties the tray.
+- **Drag** — flick the stage with a mouse or touch to throw; the throw
+  arrow tracks the drag and dice spawn around the projected press point.
+  A flick rolls unforced dice (targets apply only to the Roll button).
 
 Edge cases: invalid targets (non-integer, outside 1–6, or a count that
 does not match the dice count) show an inline error and start no roll.

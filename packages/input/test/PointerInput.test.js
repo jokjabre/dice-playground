@@ -74,6 +74,63 @@ describe('PointerInput', () => {
     input.detach();
   });
 
+  it('merges rollRequest extras into standard-mode rolls', () => {
+    let now = 1000;
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    const faceMappings = [
+      [1, 2, 3, 4, 5, 6],
+      [1, 2, 3, 4, 5, 6],
+      [1, 2, 3, 4, 5, 6]
+    ];
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-extras'),
+      now: () => now,
+      rollRequest: () => ({ faceMappings, dice: 99, vectors: [] })
+    });
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    const rolls = host.calls.filter((call) => call.method === 'roll');
+    expect(rolls).toHaveLength(1);
+    const request = rolls[0].args[0];
+    // App extras ride along ...
+    expect(request.faceMappings).toBe(faceMappings);
+    // ... but the flick always spawns its own vectors, count, and policy.
+    expect(request.dice).toBe(3);
+    expect(request.vectors).toHaveLength(3);
+    expect(request.cancelActive).toBe(false);
+    input.detach();
+  });
+
+  it('ignores rollRequest in continuous mode', () => {
+    let now = 1000;
+    let called = false;
+    const host = createFakeHost({ mode: 'continuous' });
+    const container = createFakeContainer();
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-extras-continuous'),
+      now: () => now,
+      rollRequest: () => {
+        called = true;
+        return { faceMappings: [] };
+      }
+    });
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+    expect(host.calls.filter((call) => call.method === 'applyImpulse')).toHaveLength(3);
+    expect(called).toBe(false);
+    input.detach();
+  });
+
   it('ignores sub-threshold moves', () => {
     const host = createFakeHost();
     const container = createFakeContainer();

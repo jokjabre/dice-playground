@@ -79,6 +79,8 @@ test.describe('enclosure gallery', () => {
       page.getByRole('heading', { name: 'Enclosure Gallery', level: 1 })
     ).toBeVisible();
     await expect(page.getByTestId('stage')).toBeVisible();
+    // The throw-arrow overlay mounts on the stage with PointerInput.
+    await expect(page.getByTestId('throw-visualizer')).toBeAttached();
     await expect(page.getByTestId('enclosure-select')).toBeVisible();
     await expect(page.getByTestId('throw-button')).toBeVisible();
     await expect(page.getByTestId('info-panel')).toBeVisible();

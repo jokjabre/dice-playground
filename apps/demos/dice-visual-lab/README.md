@@ -17,6 +17,8 @@ Open http://localhost:5179/apps/demos/dice-visual-lab/
 ## Controls
 
 - **Roll** — roll three dice with the active face mapping applied.
+- **Drag** — flick the stage with a mouse or touch to throw; the throw
+  arrow tracks the drag and dice spawn around the projected press point.
 - **Chamfer factor** — rebuilds die geometry from pure mesh data
   (`createDiceMeshData`) and rerolls. Range 0.5–1, default 0.96.
 - **Die radius scale** — scales the live die radius through viewport

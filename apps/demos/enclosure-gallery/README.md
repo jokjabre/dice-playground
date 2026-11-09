@@ -20,7 +20,8 @@ Open http://localhost:5175/apps/demos/enclosure-gallery/
 - **Enclosure size** — scale the active enclosure relative to its default
   size (75%–200%). Resizing rebuilds the boundaries and rolls again.
 - **Throw** — roll six fresh dice.
-- **Drag** — flick the stage with a mouse or touch to throw.
+- **Drag** — flick the stage with a mouse or touch to throw; the throw
+  arrow tracks the drag and dice spawn around the projected press point.
 - **Gravity preset / Gravity (z)** — presets (down, tilt left/right,
   zero gravity) plus a z-axis slider. Gravity applies immediately.
 - **Camera distance / Reset camera** — zoom the camera and restore the

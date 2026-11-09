@@ -236,6 +236,52 @@ test.describe('sandbox', () => {
     expect(errors).toEqual([]);
   });
 
+  test('shows the throw arrow while flicking and clamps it at maximum power', async ({
+    page
+  }) => {
+    test.setTimeout(600000);
+    const errors = await consoleErrors(page);
+
+    await page.goto(`${sandboxUrl}?seed=e2e-visualizer&maxSubSteps=120&maxFrameGap=5`);
+    await expectResultVisible(page);
+    await expectValuesInRange(page, 6);
+
+    const visualizer = page.getByTestId('throw-visualizer');
+    await expect(visualizer).toBeAttached();
+    await expect(visualizer).toBeHidden();
+
+    const stageBox = await page.getByTestId('stage').boundingBox();
+    if (!stageBox) throw new Error('Stage has no bounding box.');
+    const startX = stageBox.x + stageBox.width / 2;
+    const startY = stageBox.y + stageBox.height / 2;
+
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    // Past the 18px threshold: the arrow appears in the DOM ...
+    await page.mouse.move(startX, startY + 80, { steps: 5 });
+    await expect(visualizer).toBeVisible();
+    // ... and dragging far beyond the 190px maximum clamps the tip to it.
+    await page.mouse.move(startX, startY + 400, { steps: 5 });
+    await expect(visualizer).toBeVisible();
+    const arrowLength = await visualizer.evaluate((element) => {
+      const line = element.querySelector('line');
+      const x1 = Number(line?.getAttribute('x1') ?? 0);
+      const y1 = Number(line?.getAttribute('y1') ?? 0);
+      const x2 = Number(line?.getAttribute('x2') ?? 0);
+      const y2 = Number(line?.getAttribute('y2') ?? 0);
+      return Math.hypot(x2 - x1, y2 - y1);
+    });
+    expect(arrowLength).toBeCloseTo(190, 0);
+
+    await page.mouse.up();
+    await expectRollCycle(page);
+    await expectValuesInRange(page, 6);
+    // The release snap finishes and the overlay hides again.
+    await expect(visualizer).toBeHidden();
+
+    expect(errors).toEqual([]);
+  });
+
   test('switches enclosures and rolls in each one', async ({ page }) => {
     test.setTimeout(600000);
 

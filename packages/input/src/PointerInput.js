@@ -53,6 +53,14 @@ import { THROW_VISUALIZER_THRESHOLD, ThrowVisualizer } from './ThrowVisualizer.j
  * `threshold`, `releaseDurationMs`); undefined mounts the overlay with
  * defaults. The overlay's threshold is also the dispatch threshold: drags
  * shorter than it cancel the throw.
+ * @property {(() => Record<string, any>)|null} [rollRequest] Callback
+ * invoked on each standard-mode flick dispatch; its returned fields are
+ * merged into the `host.roll()` request under the flick's own `vectors`,
+ * `dice`, and `cancelActive` (so a flick always spawns its own vectors).
+ * Apps whose rolls carry extra state — for example the dice visual lab's
+ * face mappings — use it so flicks roll with the same extras as their
+ * buttons (a flick calls `host.roll()` directly, bypassing app code).
+ * Continuous-mode flicks ignore it: they never roll.
  */
 
 /**
@@ -105,6 +113,9 @@ export class PointerInput {
 
   /** @type {number|undefined} */
   #continuousUpwardRatio;
+
+  /** @type {(() => Record<string, any>)|null} */
+  #rollRequest;
 
   /** @type {any|null} */
   #rng;
@@ -170,6 +181,7 @@ export class PointerInput {
     this.#throwStrength = options.throwStrength ?? undefined;
     this.#continuousUpwardRatio =
       options.continuousUpwardRatio ?? undefined;
+    this.#rollRequest = options.rollRequest ?? null;
     this.#rng = options.rng ?? null;
     this.#now = options.now ?? (() => Date.now());
     this.interruptRolls = options.interruptRolls ?? false;
@@ -463,7 +475,13 @@ export class PointerInput {
     });
     if (vectors.length === 0) return;
 
+    // App-supplied extras (e.g. the visual lab's face mappings) ride along
+    // so a flick rolls like the app's own button; the flick's own vectors,
+    // dice count, and cancel policy always win.
+    const extra =
+      typeof this.#rollRequest === 'function' ? this.#rollRequest() ?? {} : {};
     const result = this.#host.roll({
+      ...extra,
       vectors,
       dice: vectors.length,
       cancelActive: this.interruptRolls

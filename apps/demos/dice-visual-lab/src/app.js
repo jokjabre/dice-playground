@@ -215,7 +215,16 @@ export async function createVisualApp(options) {
 
   controlsHost.appendChild(panel.element);
 
-  const pointerInput = new PointerInput({ container: stage });
+  const pointerInput = new PointerInput({
+    container: stage,
+    // A flick calls `engine.roll()` directly, bypassing `throwDice()`'s
+    // face mappings, so supply the active mapping here too.
+    rollRequest: () => ({
+      faceMappings: Array.from({ length: VISUAL_DICE_COUNT }, () => [
+        ...lastMapping
+      ])
+    })
+  });
   engine.use(pointerInput);
 
   /**

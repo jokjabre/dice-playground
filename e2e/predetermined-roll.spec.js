@@ -51,6 +51,8 @@ test.describe('predetermined roll', () => {
       page.getByRole('heading', { name: 'Predetermined Roll', level: 1 })
     ).toBeVisible();
     await expect(page.getByTestId('stage')).toBeVisible();
+    // The throw-arrow overlay mounts on the stage with PointerInput.
+    await expect(page.getByTestId('throw-visualizer')).toBeAttached();
     await expect(page.getByTestId('mode-select')).toBeVisible();
     await expect(page.getByTestId('target-input-1')).toBeVisible();
     await expect(page.getByTestId('target-input-3')).toBeVisible();
