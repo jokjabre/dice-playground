@@ -14,6 +14,10 @@
  * @property {number} [sceneHeight]
  * @property {number} [scene_width]
  * @property {number} [scene_height]
+ * @property {number} [containerWidth]
+ * @property {number} [container_width]
+ * @property {number} [containerHeight]
+ * @property {number} [container_height]
  * @property {number} [scale]
  * @property {number} [dieRadius]
  * @property {any} [origin]
@@ -339,9 +343,10 @@ export function resolveCollisionDistance(metrics, profile, options) {
 
 /**
  * Resolve the world-space spawn origin. This is the unprojected throw start
- * point (`P_start`); dice are scattered around it. Later phases project the
- * 2D gesture start into this 3D point — this pure-math phase accepts it as
- * input and defaults to the centre of the table.
+ * point (`P_start`); dice are scattered around it. Callers project the 2D
+ * gesture start into this 3D point with {@link clientToSpawnOrigin} and
+ * pass it in here; when nothing is supplied the origin defaults to the
+ * centre of the table.
  *
  * @param {MetricsLike|Record<string, any>|null|undefined} metrics
  * @param {SpawnProfileLike|Record<string, any>|null|undefined} profile
@@ -1018,4 +1023,69 @@ export function clientToNdc(clientX, clientY, rect) {
 export function pointerToNdc(event, rect) {
   const point = getPointerCoords(event);
   return clientToNdc(point.x, point.y, rect);
+}
+
+/**
+ * Project a client-space pointer point (`P_start`, as returned by
+ * {@link getPointerCoords}) into the world-space spawn origin
+ * (`X`, `Y`, `Z_spawn`). This is the screen-to-scene mapping used by the
+ * pointer input: the full scene spans the container (the engine reports
+ * `sceneWidth`/`sceneHeight` equal to the container size), screen X maps
+ * directly to scene X, and screen Y is flipped so upward screen movement is
+ * positive scene Y (matching {@link vectorFromDelta}). The height is
+ * `Z_spawn` resolved for the active enclosure (see
+ * {@link resolveSpawnHeight}); pass a `null` profile when the enclosure is
+ * not consulted and the default box height is used.
+ *
+ * When a usable container rect is supplied the mapping goes through
+ * {@link clientToNdc}. Without one, the point is treated as container-local
+ * pixels from the top-left corner and centred with the container size from
+ * the metrics (falling back to the scene size).
+ *
+ * @param {Pointer2D} point Client coordinates of the pointer-down point.
+ * @param {RectLike | null | undefined} rect Container bounding rect.
+ * @param {MetricsLike | Record<string, any> | null | undefined} metrics
+ * @param {SpawnProfileLike | Record<string, any> | null | undefined} spawnProfile
+ * @returns {{ x: number, y: number, z: number }}
+ */
+export function clientToSpawnOrigin(point, rect, metrics, spawnProfile) {
+  const { sceneWidth, sceneHeight } = sceneSize(metrics ?? null);
+  const cursor = {
+    x: finiteNumber(point?.x) ?? 0,
+    y: finiteNumber(point?.y) ?? 0
+  };
+
+  /** @type {{ x: number, y: number }|null} */
+  let ndc = null;
+  if (rect && rect.width > 0 && rect.height > 0) {
+    try {
+      ndc = clientToNdc(cursor.x, cursor.y, rect);
+    } catch {
+      ndc = null;
+    }
+  }
+
+  /** @type {{ x: number, y: number }} */
+  let projected;
+  if (ndc) {
+    projected = { x: ndc.x * (sceneWidth / 2), y: ndc.y * (sceneHeight / 2) };
+  } else {
+    const containerWidth = firstFinitePositive([
+      metrics?.containerWidth,
+      metrics?.container_width
+    ]) ?? sceneWidth;
+    const containerHeight = firstFinitePositive([
+      metrics?.containerHeight,
+      metrics?.container_height
+    ]) ?? sceneHeight;
+    projected = {
+      x: cursor.x - containerWidth / 2,
+      y: containerHeight / 2 - cursor.y
+    };
+  }
+
+  const z = resolveSpawnHeight(metrics ?? null, spawnProfile ?? null, {
+    origin: { x: projected.x, y: projected.y }
+  });
+  return { x: projected.x, y: projected.y, z };
 }

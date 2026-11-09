@@ -11,6 +11,7 @@ import {
   buildThrowVectors,
   clampSpawnPosition,
   clientToNdc,
+  clientToSpawnOrigin,
   evaluateGesture,
   gestureBoost,
   gestureDistance,
@@ -606,5 +607,56 @@ describe('normalized device coordinates', () => {
     expect(() =>
       clientToNdc(10, 10, { left: 0, top: 0, width: 0, height: 10 })
     ).toThrow(/rect with positive width and height/);
+  });
+});
+
+describe('client to spawn origin projection', () => {
+  const metrics = {
+    containerWidth: 1000,
+    containerHeight: 600,
+    sceneWidth: 1000,
+    sceneHeight: 600,
+    scale: 50
+  };
+  const rect = { left: 0, top: 0, width: 200, height: 200 };
+
+  it('projects the rect centre to the world origin at the box throw height', () => {
+    expect(
+      clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 0, y: 0, z: 300 });
+  });
+
+  it('flips screen Y so upward on screen is positive scene Y', () => {
+    // (150, 50) is NDC (0.5, 0.5) on a 1000x600 scene: (250, 150).
+    expect(
+      clientToSpawnOrigin({ x: 150, y: 50 }, rect, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 250, y: 150, z: 300 });
+  });
+
+  it('subtracts the rect offset of the container', () => {
+    const offset = { left: 100, top: 50, width: 200, height: 200 };
+    expect(
+      clientToSpawnOrigin({ x: 200, y: 150 }, offset, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 0, y: 0, z: 300 });
+  });
+
+  it('resolves the throw height for the active enclosure', () => {
+    expect(
+      clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, { mode: 'sphere', radius: 700 }).z
+    ).toBe(700 * 1.35);
+    expect(
+      clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, { mode: 'cylinder', radius: 700 }).z
+    ).toBe(700 * 0.5);
+    // Without an enclosure profile the default box height applies.
+    expect(clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, null).z).toBe(300);
+  });
+
+  it('falls back to the metrics container size when the rect is unusable', () => {
+    expect(
+      clientToSpawnOrigin({ x: 500, y: 300 }, null, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 0, y: 0, z: 300 });
+    expect(
+      clientToSpawnOrigin({ x: 0, y: 0 }, null, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: -500, y: 300, z: 300 });
   });
 });

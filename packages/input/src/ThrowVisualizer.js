@@ -356,6 +356,9 @@ export class ThrowVisualizer {
    */
   #mount() {
     if (!this.#container) return;
+    // A container that cannot accept children (headless fakes, plain
+    // objects) keeps the visualizer inert instead of throwing.
+    if (typeof this.#container.appendChild !== 'function') return;
     const doc = globalThis.document;
     if (!doc || typeof doc.createElementNS !== 'function') return;
 

@@ -1,9 +1,10 @@
 // @ts-nocheck
 import { createSeededRandom } from '@dice/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   THROW_STRENGTH,
+  THROW_VISUALIZER_THRESHOLD,
   CONTINUOUS_UPWARD_VELOCITY_RATIO,
   DEFAULT_DIE_MASS,
   PointerInput,
@@ -120,6 +121,8 @@ describe('PointerInput', () => {
     input.attach(host);
     expect(fakeWindow.listenerCount('mouseup')).toBe(1);
     expect(fakeWindow.listenerCount('touchend')).toBe(1);
+    expect(fakeWindow.listenerCount('mousemove')).toBe(1);
+    expect(fakeWindow.listenerCount('touchmove')).toBe(1);
 
     container.dispatch('mousedown', mouseEvent(100, 100));
     // The pointer leaves the container mid-gesture ...
@@ -163,7 +166,7 @@ describe('PointerInput', () => {
 
     input.attach(host);
     expect(input.enabled).toBe(true);
-    expect(container.listenerCount()).toBe(5);
+    expect(container.listenerCount()).toBe(7);
 
     input.detach();
     expect(input.enabled).toBe(false);
@@ -206,8 +209,11 @@ describe('PointerInput', () => {
     const directions = new Set();
     for (const call of impulses) {
       const impulse = call.args[1];
-      // No projected world point yet (Phase 4): applied at the centre of mass.
-      expect(call.args[2]).toBeUndefined();
+      // Projected pointer-down point shared by every impulse. The fake
+      // container rect is 200x200 and the press lands at its centre, so the
+      // horizontal projection is the world origin at the default throw
+      // height (no enclosure profile is consulted in continuous mode).
+      expect(call.args[2]).toEqual({ x: 0, y: 0, z: 300 });
       expect(Number.isFinite(impulse.x)).toBe(true);
       expect(Number.isFinite(impulse.y)).toBe(true);
       expect(Number.isFinite(impulse.z)).toBe(true);
@@ -416,6 +422,172 @@ describe('PointerInput', () => {
 
     expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
     expect(host.calls.filter((call) => call.method === 'applyImpulse')).toHaveLength(0);
+    input.detach();
+  });
+
+  it('throws for drags past the 18px threshold even below the legacy swipe distance', () => {
+    // A 30px flick is well below minSwipeThreshold for a 1000x600 scene
+    // (~77px) but past the 18px visual threshold, so it now dispatches.
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({ container, now: () => now });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 130));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    input.detach();
+  });
+
+  it('cancels throws shorter than the 18px threshold', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    const input = new PointerInput({ container });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mouseup', mouseEvent(100, 100 + THROW_VISUALIZER_THRESHOLD - 1));
+
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+    input.detach();
+  });
+
+  it('spawns dice around the projected pointer-down point', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-projection'),
+      now: () => now
+    });
+
+    input.attach(host);
+    // The fake container rect is 200x200, so a press at (150, 50) projects
+    // to NDC (0.5, 0.5): scene (250, 150) on a 1000x600 scene.
+    container.dispatch('mousedown', mouseEvent(150, 50));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(150, 250));
+
+    const rolls = host.calls.filter((call) => call.method === 'roll');
+    expect(rolls).toHaveLength(1);
+    const vectors = rolls[0].args[0].vectors;
+    expect(vectors.length).toBeGreaterThan(0);
+    for (const vector of vectors) {
+      // Every die spawns at the shared throw height near the projection.
+      expect(vector.pos.z).toBe(300);
+      expect(Math.hypot(vector.pos.x - 250, vector.pos.y - 150)).toBeLessThan(400);
+    }
+    input.detach();
+  });
+
+  it('drives the throw visualizer through down, move, up, and cancel', () => {
+    vi.useFakeTimers();
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      rng: createSeededRandom('pointer-visualizer'),
+      now: () => now
+    });
+
+    expect(input.visualizer).not.toBeNull();
+    const visualizer = input.visualizer;
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    expect(visualizer.anchor).not.toBeNull();
+    // Sub-threshold: the arrow stays hidden.
+    container.dispatch('mousemove', mouseEvent(100, 110));
+    expect(visualizer.visible).toBe(false);
+
+    container.dispatch('mousemove', mouseEvent(100, 160));
+    expect(visualizer.visible).toBe(true);
+    expect(visualizer.length).toBeCloseTo(60, 6);
+    expect(visualizer.powerRatio).toBeCloseTo(60 / visualizer.maxLength, 6);
+
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    // Release starts the fade + scale snap; the arrow is no longer live.
+    expect(visualizer.visible).toBe(false);
+    vi.advanceTimersByTime(201);
+    expect(visualizer.anchor).toBeNull();
+
+    // A cancelled gesture hides the arrow and produces no roll.
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mousemove', mouseEvent(100, 160));
+    expect(visualizer.visible).toBe(true);
+    container.dispatch('touchcancel', mouseEvent(100, 160));
+    expect(visualizer.visible).toBe(false);
+    expect(visualizer.anchor).toBeNull();
+    container.dispatch('mouseup', mouseEvent(100, 300));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+
+    vi.useRealTimers();
+    input.detach();
+  });
+
+  it('keeps tracking the arrow when the pointer moves on the window', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    const fakeWindow = createFakeTarget();
+    container.ownerDocument = { defaultView: fakeWindow };
+    const input = new PointerInput({ container });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    fakeWindow.dispatch('mousemove', mouseEvent(100, 160));
+    expect(input.visualizer.visible).toBe(true);
+    input.detach();
+  });
+
+  it('honours an explicit visualizer threshold for both arrow and dispatch', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    const input = new PointerInput({
+      container,
+      visualizer: { threshold: 40 }
+    });
+
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mousemove', mouseEvent(100, 130));
+    expect(input.visualizer.visible).toBe(false);
+    container.dispatch('mouseup', mouseEvent(100, 130));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mouseup', mouseEvent(100, 150));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    input.detach();
+  });
+
+  it('works without a visualizer overlay when disabled', () => {
+    const host = createFakeHost();
+    const container = createFakeContainer();
+    let now = 1000;
+    const input = new PointerInput({
+      container,
+      visualizer: false,
+      rng: createSeededRandom('pointer-no-visualizer'),
+      now: () => now
+    });
+
+    expect(input.visualizer).toBeNull();
+    input.attach(host);
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    container.dispatch('mouseup', mouseEvent(100, 117));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(0);
+
+    container.dispatch('mousedown', mouseEvent(100, 100));
+    now += 200;
+    container.dispatch('mouseup', mouseEvent(100, 300));
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
     input.detach();
   });
 

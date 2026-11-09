@@ -8,11 +8,13 @@ import {
   THROW_VISUALIZER_MEDIUM_COLOR,
   THROW_VISUALIZER_SOFT_COLOR,
   THROW_VISUALIZER_THRESHOLD,
+  PointerInput,
   ThrowVisualizer,
   clampThrowPoint,
   throwColorForPower,
   throwPowerRatio
 } from '../src/index.js';
+import { createFakeHost } from './fakes.js';
 
 /** @type {HTMLElement} */
 let container;
@@ -330,5 +332,52 @@ describe('ThrowVisualizer without a DOM container', () => {
     expect(visualizer.powerRatio).toBeGreaterThan(0);
     expect(() => visualizer.release()).not.toThrow();
     expect(() => visualizer.detach()).not.toThrow();
+  });
+
+  it('stays inert when the container cannot accept children', () => {
+    const visualizer = new ThrowVisualizer({ container: {} });
+
+    expect(visualizer.element).toBeNull();
+    expect(() => visualizer.start({ x: 0, y: 0 })).not.toThrow();
+    expect(() => visualizer.detach()).not.toThrow();
+  });
+});
+
+describe('ThrowVisualizer wired through PointerInput', () => {
+  it('mounts the overlay on attach and tracks the drag in the DOM', () => {
+    const host = createFakeHost();
+    const input = new PointerInput({ container });
+
+    expect(svg()).not.toBeNull();
+
+    input.attach(host);
+    container.dispatchEvent(
+      new window.MouseEvent('mousedown', { bubbles: true, clientX: 100, clientY: 100 })
+    );
+    container.dispatchEvent(
+      new window.MouseEvent('mousemove', { bubbles: true, clientX: 100, clientY: 160 })
+    );
+
+    expect(input.visualizer.visible).toBe(true);
+    expect(svg().style.visibility).toBe('visible');
+    expect(svg().querySelector('line').getAttribute('stroke')).toBe(
+      throwColorForPower(input.visualizer.powerRatio)
+    );
+
+    container.dispatchEvent(
+      new window.MouseEvent('mouseup', { bubbles: true, clientX: 100, clientY: 300 })
+    );
+    expect(host.calls.filter((call) => call.method === 'roll')).toHaveLength(1);
+    input.detach();
+  });
+
+  it('removes the overlay when PointerInput detaches', () => {
+    const input = new PointerInput({ container });
+    input.attach(createFakeHost());
+    expect(svg()).not.toBeNull();
+
+    input.detach();
+    expect(svg()).toBeNull();
+    expect(input.visualizer.element).toBeNull();
   });
 });

@@ -54,5 +54,6 @@ export {
   DEFAULT_SPAWN_DIE_RADIUS,
   DEFAULT_DIE_MASS,
   clientToNdc,
-  pointerToNdc
+  pointerToNdc,
+  clientToSpawnOrigin
 } from './gesture.js';
