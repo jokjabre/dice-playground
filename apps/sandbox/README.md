@@ -14,6 +14,19 @@ npm run dev:sandbox
 
 Open http://localhost:5174/apps/sandbox/
 
+## Throwing (flicks + throw arrow)
+
+Flick/drag the stage with a mouse or touch to throw. The throw arrow sits
+on the stage while you drag: its base stays anchored where you press, the
+tip follows the cursor (clamped at maximum power), and the colour shifts
+from teal (soft) through gold to orange-red (maximum). Drags shorter than
+18 px cancel, so taps still select dice. Dice spawn scattered around the
+projected press point at the enclosure's throw height, lobbing upward
+with per-die speed/angle and spin variation. In **Continuous Live** mode
+a flick applies a directional upward impulse to the live dice instead —
+nothing is cleared or respawned, and each die tumbles with its own
+variation.
+
 ## Modes
 
 - **Standard Roll (Flick & Settle)** — flick/drag the stage or press Throw.

@@ -14,6 +14,7 @@ export function createFakeHost(overrides = {}) {
   const events = new EventBus();
   const state = {
     diceIds: overrides.diceIds ?? ['die-1', 'die-2', 'die-3'],
+    mode: overrides.mode ?? 'standard',
     selection: overrides.selection ? [...overrides.selection] : [],
     metrics: overrides.metrics ?? {
       containerWidth: 1000,
@@ -34,6 +35,14 @@ export function createFakeHost(overrides = {}) {
     calls,
     events,
     state,
+    // Live mode, like the DiceEngine `mode` getter: read on every flick and
+    // assignable at runtime to model a mode switch after attach.
+    get mode() {
+      return state.mode;
+    },
+    set mode(value) {
+      state.mode = value;
+    },
     roll(request) {
       calls.push({ method: 'roll', args: [request] });
       return Promise.resolve(request);

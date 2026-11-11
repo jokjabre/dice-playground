@@ -2,17 +2,43 @@ import { createSeededRandom } from '@dice/core';
 import { describe, expect, it } from 'vitest';
 
 import {
+  CONTINUOUS_UPWARD_VELOCITY_RATIO,
+  DEFAULT_DIE_MASS,
+  MAX_THROW_ANGLE_DEVIATION,
+  THROW_SPEED_JITTER,
+  THROW_STRENGTH,
+  buildContinuousImpulses,
   buildThrowVectors,
+  clampSpawnPosition,
   clientToNdc,
+  clientToSpawnOrigin,
   evaluateGesture,
   gestureBoost,
   gestureDistance,
+  isSpawnPositionInside,
   minSwipeThreshold,
   normalizeVector,
   randomizeDirection,
+  resolveCollisionDistance,
+  sampleSpawnPositions,
+  spawnDistance,
   spawnPosition,
   vectorFromDelta
 } from '../src/index.js';
+
+/**
+ * @param {Array<{ pos: { x: number, y: number, z: number } }>} vectors
+ * @returns {number}
+ */
+function minimumPairwiseDistance(vectors) {
+  let minimum = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < vectors.length; i += 1) {
+    for (let j = i + 1; j < vectors.length; j += 1) {
+      minimum = Math.min(minimum, spawnDistance(vectors[i].pos, vectors[j].pos));
+    }
+  }
+  return minimum;
+}
 
 describe('gesture distance and boost math', () => {
   it('measures distance from the delta vector', () => {
@@ -110,7 +136,8 @@ describe('throw vector generation', () => {
     expect(first).toHaveLength(3);
     expect(first).toEqual(second);
     for (const vector of first) {
-      expect(vector.velocity.z).toBe(-10);
+      // Upward lob: Vz is positive and scaled with the throw force.
+      expect(vector.velocity.z).toBeGreaterThan(0);
       expect(Number.isFinite(vector.pos.x)).toBe(true);
       expect(Number.isFinite(vector.angle.x)).toBe(true);
     }
@@ -123,10 +150,12 @@ describe('throw vector generation', () => {
       metrics,
       { mode: 'box' }
     );
+    // Origin-anchored: near the table centre, not at the tray edges.
     expect(Math.abs(box.x)).toBeLessThanOrEqual(900);
     expect(Math.abs(box.y)).toBeLessThanOrEqual(540);
-    expect(box.z).toBeGreaterThanOrEqual(200);
-    expect(box.z).toBeLessThanOrEqual(400);
+    expect(Math.hypot(box.x, box.y)).toBeLessThanOrEqual(300);
+    expect(box.z).toBe(300);
+    expect(isSpawnPositionInside(box, metrics, { mode: 'box' })).toBe(true);
 
     const sphere = spawnPosition(
       { x: 1, y: 0 },
@@ -134,8 +163,435 @@ describe('throw vector generation', () => {
       metrics,
       { mode: 'sphere', radius: 700 }
     );
-    expect(Math.hypot(sphere.x, sphere.y)).toBeLessThanOrEqual(700 * 0.28 * Math.SQRT2);
-    expect(sphere.z).toBeGreaterThanOrEqual(700 * 0.4);
+    expect(sphere.z).toBe(700 * 1.35);
+    expect(
+      Math.hypot(sphere.x, sphere.y, sphere.z - 700)
+    ).toBeLessThanOrEqual(700 - 40.5);
+    expect(isSpawnPositionInside(sphere, metrics, { mode: 'sphere', radius: 700 })).toBe(true);
+
+    const cylinder = spawnPosition(
+      { x: 1, y: 0 },
+      createSeededRandom('cylinder'),
+      metrics,
+      { mode: 'cylinder', radius: 700 }
+    );
+    expect(cylinder.z).toBe(700 * 0.5);
+    expect(Math.hypot(cylinder.x, cylinder.y)).toBeLessThanOrEqual(700 - 40.5);
+    expect(isSpawnPositionInside(cylinder, metrics, { mode: 'cylinder', radius: 700 })).toBe(
+      true
+    );
+  });
+});
+
+describe('origin-anchored throw generation (Phase 1)', () => {
+  const metrics = { sceneWidth: 1000, sceneHeight: 600 };
+
+  it('is deterministic for a fixed seed across all enclosures', () => {
+    for (const spawnProfile of [
+      { mode: 'box' },
+      { mode: 'sphere', radius: 700 },
+      { mode: 'cylinder', radius: 700 }
+    ]) {
+      const build = () =>
+        buildThrowVectors({
+          direction: { x: 0.6, y: 0.8 },
+          boost: 250,
+          count: 6,
+          rng: createSeededRandom('phase1-seed'),
+          metrics,
+          spawnProfile,
+          dieInertia: 13
+        });
+      expect(build()).toEqual(build());
+    }
+  });
+
+  it('never spawns two dice within collision distance of each other', () => {
+    const collisionDistance = resolveCollisionDistance(metrics, { mode: 'box' });
+    // Die diameter (2 * 40.5) plus the spawn margin.
+    expect(collisionDistance).toBeCloseTo(81 + 10, 10);
+
+    for (const spawnProfile of [
+      { mode: 'box' },
+      { mode: 'sphere', radius: 450 },
+      { mode: 'cylinder', radius: 270 }
+    ]) {
+      const vectors = buildThrowVectors({
+        direction: { x: 1, y: 0 },
+        boost: 300,
+        count: 8,
+        rng: createSeededRandom(`overlap-${spawnProfile.mode}`),
+        metrics,
+        spawnProfile
+      });
+      expect(vectors).toHaveLength(8);
+      expect(minimumPairwiseDistance(vectors)).toBeGreaterThanOrEqual(
+        collisionDistance - 1e-9
+      );
+    }
+  });
+
+  it('keeps every spawn inside the box, sphere, and cylinder bounds', () => {
+    const cases = [
+      { spawnProfile: { mode: 'box' }, check: (/** @type {any} */ p) => {
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(1000 * 0.93 - 40.5);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(600 * 0.93 - 40.5);
+        expect(p.z).toBeGreaterThanOrEqual(40.5);
+        expect(p.z).toBeLessThanOrEqual(2700);
+      } },
+      { spawnProfile: { mode: 'sphere', radius: 450 }, check: (/** @type {any} */ p) => {
+        expect(Math.hypot(p.x, p.y, p.z - 450)).toBeLessThanOrEqual(450 - 40.5);
+      } },
+      { spawnProfile: { mode: 'cylinder', radius: 270 }, check: (/** @type {any} */ p) => {
+        expect(Math.hypot(p.x, p.y)).toBeLessThanOrEqual(270 - 40.5);
+        expect(p.z).toBeGreaterThanOrEqual(40.5);
+      } }
+    ];
+
+    for (const { spawnProfile, check } of cases) {
+      const vectors = buildThrowVectors({
+        direction: { x: -0.8, y: 0.6 },
+        boost: 400,
+        count: 10,
+        rng: createSeededRandom(`bounds-${spawnProfile.mode}`),
+        metrics,
+        spawnProfile
+      });
+      for (const vector of vectors) {
+        check(vector.pos);
+        expect(isSpawnPositionInside(vector.pos, metrics, spawnProfile)).toBe(true);
+      }
+    }
+  });
+
+  it('anchors spawns at a supplied origin at the shared throw height', () => {
+    const origin = { x: 120, y: -80, z: 250 };
+    const positions = sampleSpawnPositions({
+      count: 6,
+      rng: createSeededRandom('origin'),
+      metrics,
+      spawnProfile: { mode: 'box' },
+      origin
+    });
+    expect(positions).toHaveLength(6);
+    for (const pos of positions) {
+      expect(pos.z).toBe(250);
+      expect(Math.hypot(pos.x - origin.x, pos.y - origin.y)).toBeLessThanOrEqual(350);
+      expect(isSpawnPositionInside(pos, metrics, { mode: 'box' })).toBe(true);
+    }
+
+    // An origin outside the enclosure is still clamped inside it.
+    const clamped = sampleSpawnPositions({
+      count: 4,
+      rng: createSeededRandom('origin-outside'),
+      metrics,
+      spawnProfile: { mode: 'box' },
+      origin: { x: 5000, y: -5000, z: 250 }
+    });
+    for (const pos of clamped) {
+      expect(isSpawnPositionInside(pos, metrics, { mode: 'box' })).toBe(true);
+    }
+  });
+
+  it('gives positive Vz scaled with throw force, within the angle cone', () => {
+    const direction = { x: 0.6, y: 0.8 };
+    const soft = buildThrowVectors({
+      direction,
+      boost: 100,
+      count: 6,
+      rng: createSeededRandom('lob'),
+      metrics,
+      spawnProfile: { mode: 'box' }
+    });
+    const hard = buildThrowVectors({
+      direction,
+      boost: 400,
+      count: 6,
+      rng: createSeededRandom('lob'),
+      metrics,
+      spawnProfile: { mode: 'box' }
+    });
+
+    const deviations = new Set();
+    soft.forEach((vector, index) => {
+      expect(vector.velocity.z).toBeGreaterThan(0);
+      // Same seed => the same jitter sequence, so Vz scales with boost.
+      expect(hard[index].velocity.z).toBeCloseTo(vector.velocity.z * 4, 6);
+
+      const horizontal = Math.hypot(vector.velocity.x, vector.velocity.y);
+      // Per-die speed jitter is bounded to ±15% of boost x throw strength.
+      expect(horizontal / (100 * THROW_STRENGTH)).toBeGreaterThanOrEqual(0.85 - 1e-9);
+      expect(horizontal / (100 * THROW_STRENGTH)).toBeLessThanOrEqual(1.15 + 1e-9);
+      expect(vector.velocity.z).toBeCloseTo(horizontal * 0.5, 6);
+
+      const dot =
+        (vector.velocity.x * direction.x + vector.velocity.y * direction.y) /
+        horizontal;
+      const deviation = Math.acos(Math.max(-1, Math.min(1, dot)));
+      expect(deviation).toBeLessThanOrEqual(MAX_THROW_ANGLE_DEVIATION + 1e-9);
+      deviations.add(Number(deviation.toFixed(6)));
+
+      // 3D spin: every axis is exercised and varies per die.
+      expect(Math.hypot(vector.angle.x, vector.angle.y, vector.angle.z)).toBeGreaterThan(0);
+    });
+    // Angular variation: the dice do not all fly in exactly the same direction.
+    expect(deviations.size).toBeGreaterThan(1);
+
+    // Spin scales with throw power: the same seed at a higher boost tumbles harder.
+    const softSpin = Math.hypot(soft[0].angle.x, soft[0].angle.y, soft[0].angle.z);
+    const hardSpin = Math.hypot(hard[0].angle.x, hard[0].angle.y, hard[0].angle.z);
+    expect(hardSpin).toBeGreaterThan(softSpin);
+    expect(soft.some((vector) => vector.angle.z !== 0)).toBe(true);
+  });
+
+  it('keeps a following spawn clear of an already placed die', () => {
+    const first = spawnPosition(
+      { x: 1, y: 0 },
+      createSeededRandom('placed'),
+      metrics,
+      { mode: 'box' }
+    );
+    const second = spawnPosition(
+      { x: 1, y: 0 },
+      createSeededRandom('placed'),
+      metrics,
+      { mode: 'box' },
+      { placed: [first] }
+    );
+    expect(spawnDistance(first, second)).toBeGreaterThanOrEqual(
+      resolveCollisionDistance(metrics, { mode: 'box' }) - 1e-9
+    );
+  });
+
+  it('clamps out-of-bounds positions into each enclosure', () => {
+    const box = clampSpawnPosition({ x: 9999, y: -9999, z: 9999 }, metrics, { mode: 'box' });
+    expect(isSpawnPositionInside(box, metrics, { mode: 'box' })).toBe(true);
+
+    const sphere = clampSpawnPosition(
+      { x: 9999, y: 0, z: 9999 },
+      metrics,
+      { mode: 'sphere', radius: 700 }
+    );
+    expect(isSpawnPositionInside(sphere, metrics, { mode: 'sphere', radius: 700 })).toBe(true);
+
+    const cylinder = clampSpawnPosition(
+      { x: 9999, y: 9999, z: 1 },
+      metrics,
+      { mode: 'cylinder', radius: 700 }
+    );
+    expect(isSpawnPositionInside(cylinder, metrics, { mode: 'cylinder', radius: 700 })).toBe(
+      true
+    );
+    expect(cylinder.z).toBeGreaterThanOrEqual(40.5);
+  });
+});
+
+describe('continuous impulse generation (Phase 2)', () => {
+  it('builds one varied impulse per die, deterministically for a fixed seed', () => {
+    const build = () =>
+      buildContinuousImpulses({
+        direction: { x: 0.6, y: 0.8 },
+        boost: 300,
+        ids: ['die-1', 'die-2', 'die-3', 'die-4'],
+        rng: createSeededRandom('continuous')
+      });
+    const first = build();
+
+    expect(first).toEqual(build());
+    expect(first.map((entry) => entry.id)).toEqual([
+      'die-1',
+      'die-2',
+      'die-3',
+      'die-4'
+    ]);
+    // No application point is invented when none is supplied.
+    expect(first.every((entry) => entry.worldPoint === undefined)).toBe(true);
+
+    const magnitudes = new Set();
+    const directions = new Set();
+    for (const entry of first) {
+      const { impulse } = entry;
+      expect(Number.isFinite(impulse.x)).toBe(true);
+      expect(Number.isFinite(impulse.y)).toBe(true);
+      // Upward pop scaled with the jittered horizontal speed.
+      expect(impulse.z).toBeGreaterThan(0);
+      const horizontal = Math.hypot(impulse.x, impulse.y);
+      // Steeply off the floor: Vz is 1.5x the horizontal speed, not the
+      // 0.5x throw ratio (which lifted a resting die only ~6 units).
+      expect(impulse.z).toBeCloseTo(
+        horizontal * CONTINUOUS_UPWARD_VELOCITY_RATIO,
+        6
+      );
+      // Mass-scaled and strength-multiplied: impulse / mass yields
+      // boost x strength as the Δv. Per-die speed jitter is bounded to
+      // ±15% of that.
+      const deltaV = horizontal / DEFAULT_DIE_MASS;
+      const expected = 300 * THROW_STRENGTH;
+      expect(deltaV / expected).toBeGreaterThanOrEqual(1 - THROW_SPEED_JITTER - 1e-9);
+      expect(deltaV / expected).toBeLessThanOrEqual(1 + THROW_SPEED_JITTER + 1e-9);
+      // Horizontal direction stays inside the throw cone.
+      const dot = (impulse.x * 0.6 + impulse.y * 0.8) / horizontal;
+      const deviation = Math.acos(Math.max(-1, Math.min(1, dot)));
+      expect(deviation).toBeLessThanOrEqual(MAX_THROW_ANGLE_DEVIATION + 1e-9);
+      magnitudes.add(Number(horizontal.toFixed(6)));
+      directions.add(Number(Math.atan2(impulse.x, impulse.y).toFixed(6)));
+    }
+    // Varied directions and magnitudes per die.
+    expect(magnitudes.size).toBeGreaterThan(1);
+    expect(directions.size).toBeGreaterThan(1);
+  });
+
+  it('scales impulses by the die mass so a flick is actually felt', () => {
+    // Regression: an unscaled impulse changed the velocity by only
+    // boost / mass (~1 unit at the default mass), so a continuous-mode
+    // flick was imperceptible and looked unregistered.
+    const build = (/** @type {Record<string, any>} */ extra) =>
+      buildContinuousImpulses({
+        direction: { x: 1, y: 0 },
+        boost: 400,
+        count: 1,
+        rng: createSeededRandom('continuous-mass'),
+        ...extra
+      });
+
+    // Default: Δv (impulse / DEFAULT_DIE_MASS) equals boost x strength
+    // (± jitter) horizontally, and 1.5x that upward — a typical flick
+    // (boost 400) pops at Vz ~1800 instead of skidding at Vz ~200.
+    const [defaultImpulse] = build({});
+    const defaultDeltaV =
+      Math.hypot(defaultImpulse.impulse.x, defaultImpulse.impulse.y) /
+      DEFAULT_DIE_MASS;
+    const expectedDeltaV = 400 * THROW_STRENGTH;
+    expect(defaultDeltaV).toBeGreaterThanOrEqual(expectedDeltaV * 0.85);
+    expect(defaultDeltaV).toBeLessThanOrEqual(expectedDeltaV * 1.15);
+    expect(defaultImpulse.impulse.z / DEFAULT_DIE_MASS).toBeGreaterThan(
+      defaultDeltaV
+    );
+
+    // A custom die mass scales the impulse proportionally.
+    const [lightImpulse] = build({ dieMass: 100 });
+    expect(lightImpulse.impulse.x).toBeCloseTo(defaultImpulse.impulse.x / 3, 6);
+    expect(lightImpulse.impulse.z).toBeCloseTo(defaultImpulse.impulse.z / 3, 6);
+
+    // A custom strength scales the impulse proportionally.
+    const [strongImpulse] = build({ throwStrength: 6 });
+    expect(strongImpulse.impulse.x).toBeCloseTo(defaultImpulse.impulse.x * 2, 6);
+
+    // An explicit scale overrides the mass scaling (strength still applies).
+    const [scaledImpulse] = build({ scale: 2 });
+    expect(scaledImpulse.impulse.x).toBeCloseTo(
+      (defaultImpulse.impulse.x * 2) / DEFAULT_DIE_MASS,
+      6
+    );
+  });
+
+  it('uses the one unified throw strength for standard and continuous flicks', () => {
+    const direction = { x: 0.6, y: 0.8 };
+    const boost = 300;
+
+    // Standard throws: velocity is boost x THROW_STRENGTH (± jitter).
+    const vectors = buildThrowVectors({
+      direction,
+      boost,
+      count: 4,
+      rng: createSeededRandom('unified-strength'),
+      metrics: { sceneWidth: 1000, sceneHeight: 600 },
+      spawnProfile: { mode: 'box' }
+    });
+    for (const vector of vectors) {
+      const ratio =
+        Math.hypot(vector.velocity.x, vector.velocity.y) / boost;
+      expect(ratio).toBeGreaterThanOrEqual(THROW_STRENGTH * 0.85);
+      expect(ratio).toBeLessThanOrEqual(THROW_STRENGTH * 1.15);
+    }
+
+    // Continuous impulses: Δv (impulse / mass) is the same boost x
+    // THROW_STRENGTH (± jitter) — one setting, both modes.
+    const impulses = buildContinuousImpulses({
+      direction,
+      boost,
+      count: 4,
+      rng: createSeededRandom('unified-strength')
+    });
+    for (const entry of impulses) {
+      const ratio =
+        Math.hypot(entry.impulse.x, entry.impulse.y) /
+        DEFAULT_DIE_MASS /
+        boost;
+      expect(ratio).toBeGreaterThanOrEqual(THROW_STRENGTH * 0.85);
+      expect(ratio).toBeLessThanOrEqual(THROW_STRENGTH * 1.15);
+    }
+
+    // An explicit strength of 1 reproduces the legacy boost-scale throw.
+    const legacy = buildThrowVectors({
+      direction,
+      boost,
+      count: 1,
+      rng: createSeededRandom('unified-strength'),
+      metrics: { sceneWidth: 1000, sceneHeight: 600 },
+      spawnProfile: { mode: 'box' },
+      throwStrength: 1
+    });
+    const legacyRatio = Math.hypot(legacy[0].velocity.x, legacy[0].velocity.y) / boost;
+    expect(legacyRatio).toBeGreaterThanOrEqual(0.85);
+    expect(legacyRatio).toBeLessThanOrEqual(1.15);
+  });
+
+  it('scales with the throw boost for the same seed', () => {
+    /**
+     * @param {number} boost
+     */
+    const build = (boost) =>
+      buildContinuousImpulses({
+        direction: { x: 1, y: 0 },
+        boost,
+        count: 3,
+        rng: createSeededRandom('continuous-scale')
+      });
+    const soft = build(100);
+    const hard = build(400);
+
+    soft.forEach((entry, index) => {
+      expect(hard[index].impulse.z).toBeCloseTo(entry.impulse.z * 4, 6);
+      expect(hard[index].impulse.x).toBeCloseTo(entry.impulse.x * 4, 6);
+    });
+  });
+
+  it('falls back to a count and returns nothing for no dice', () => {
+    expect(
+      buildContinuousImpulses({
+        direction: { x: 1, y: 0 },
+        boost: 100,
+        ids: [],
+        rng: createSeededRandom('continuous-empty')
+      })
+    ).toEqual([]);
+
+    const byCount = buildContinuousImpulses({
+      direction: { x: 1, y: 0 },
+      boost: 100,
+      count: 2,
+      rng: createSeededRandom('continuous-count')
+    });
+    expect(byCount).toHaveLength(2);
+    expect(byCount[0].id).toBeUndefined();
+  });
+
+  it('passes a supplied world point through to every entry', () => {
+    const entries = buildContinuousImpulses({
+      direction: { x: 1, y: 0 },
+      boost: 100,
+      ids: ['die-1', 'die-2'],
+      rng: createSeededRandom('continuous-point'),
+      worldPoint: { x: 10, y: -20, z: 300 }
+    });
+
+    expect(entries).toHaveLength(2);
+    for (const entry of entries) {
+      expect(entry.worldPoint).toEqual({ x: 10, y: -20, z: 300 });
+    }
+    // Each entry carries its own copy, not a shared object.
+    expect(entries[0].worldPoint).not.toBe(entries[1].worldPoint);
   });
 });
 
@@ -151,5 +607,56 @@ describe('normalized device coordinates', () => {
     expect(() =>
       clientToNdc(10, 10, { left: 0, top: 0, width: 0, height: 10 })
     ).toThrow(/rect with positive width and height/);
+  });
+});
+
+describe('client to spawn origin projection', () => {
+  const metrics = {
+    containerWidth: 1000,
+    containerHeight: 600,
+    sceneWidth: 1000,
+    sceneHeight: 600,
+    scale: 50
+  };
+  const rect = { left: 0, top: 0, width: 200, height: 200 };
+
+  it('projects the rect centre to the world origin at the box throw height', () => {
+    expect(
+      clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 0, y: 0, z: 300 });
+  });
+
+  it('flips screen Y so upward on screen is positive scene Y', () => {
+    // (150, 50) is NDC (0.5, 0.5) on a 1000x600 scene: (250, 150).
+    expect(
+      clientToSpawnOrigin({ x: 150, y: 50 }, rect, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 250, y: 150, z: 300 });
+  });
+
+  it('subtracts the rect offset of the container', () => {
+    const offset = { left: 100, top: 50, width: 200, height: 200 };
+    expect(
+      clientToSpawnOrigin({ x: 200, y: 150 }, offset, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 0, y: 0, z: 300 });
+  });
+
+  it('resolves the throw height for the active enclosure', () => {
+    expect(
+      clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, { mode: 'sphere', radius: 700 }).z
+    ).toBe(700 * 1.35);
+    expect(
+      clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, { mode: 'cylinder', radius: 700 }).z
+    ).toBe(700 * 0.5);
+    // Without an enclosure profile the default box height applies.
+    expect(clientToSpawnOrigin({ x: 100, y: 100 }, rect, metrics, null).z).toBe(300);
+  });
+
+  it('falls back to the metrics container size when the rect is unusable', () => {
+    expect(
+      clientToSpawnOrigin({ x: 500, y: 300 }, null, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: 0, y: 0, z: 300 });
+    expect(
+      clientToSpawnOrigin({ x: 0, y: 0 }, null, metrics, { mode: 'box', radius: 700 })
+    ).toEqual({ x: -500, y: 300, z: 300 });
   });
 });

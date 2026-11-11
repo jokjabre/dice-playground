@@ -16,6 +16,8 @@ Open http://localhost:5177/apps/demos/physics-lab/
 ## Controls
 
 - **Throw / Clear dice** — roll six fresh dice or empty the tray.
+- **Drag** — flick the stage with a mouse or touch to throw; the throw
+  arrow tracks the drag and dice spawn around the projected press point.
 - **Enclosure** — switch between Box, Sphere, and Cylinder; switching
   rebuilds the boundaries and rolls again.
 - **Gravity X/Y/Z** — set the gravity vector immediately (default

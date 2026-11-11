@@ -26,7 +26,24 @@ export {
   createSpawnProfile,
   spawnPosition,
   randomizeDirection,
-  buildThrowVectors
+  buildThrowVectors,
+  sampleSpawnPositions,
+  clampSpawnPosition,
+  clampToEnclosure,
+  isSpawnPositionInside,
+  isInsideEnclosure,
+  resolveDieRadius,
+  resolveCollisionDistance,
+  resolveSpawnOrigin,
+  resolveSpawnHeight,
+  spawnDistance,
+  MAX_THROW_ANGLE_DEVIATION,
+  THROW_ANGLE_SPREAD,
+  THROW_SPEED_JITTER,
+  UPWARD_VELOCITY_RATIO,
+  THROW_STRENGTH,
+  SPAWN_COLLISION_MARGIN,
+  DEFAULT_SPAWN_DIE_RADIUS
 } from './SpawnProfile.js';
 export { MeshBodySync } from './MeshBodySync.js';
 export { Viewport } from './Viewport.js';

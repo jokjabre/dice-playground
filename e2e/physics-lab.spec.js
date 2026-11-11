@@ -50,6 +50,8 @@ test.describe('physics lab', () => {
       page.getByRole('heading', { name: 'Physics Lab', level: 1 })
     ).toBeVisible();
     await expect(page.getByTestId('stage')).toBeVisible();
+    // The throw-arrow overlay mounts on the stage with PointerInput.
+    await expect(page.getByTestId('throw-visualizer')).toBeAttached();
     await expect(page.getByTestId('throw-button')).toBeVisible();
     await expect(page.getByTestId('gravity-z-slider')).toBeVisible();
     await expect(page.getByTestId('surface-select')).toBeVisible();

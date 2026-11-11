@@ -51,6 +51,8 @@ test.describe('dice visual lab', () => {
       page.getByRole('heading', { name: 'Dice Visual Lab', level: 1 })
     ).toBeVisible();
     await expect(page.getByTestId('stage')).toBeVisible();
+    // The throw-arrow overlay mounts on the stage with PointerInput.
+    await expect(page.getByTestId('throw-visualizer')).toBeAttached();
     await expect(page.getByTestId('chamfer-slider')).toBeVisible();
     await expect(page.getByTestId('radius-scale-slider')).toBeVisible();
     await expect(page.getByTestId('body-color-input')).toBeVisible();
