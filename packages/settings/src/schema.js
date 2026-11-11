@@ -1,44 +1,75 @@
-/**
- * Phase 0 schema stubs.
- *
- * The canonical settings model is organized by section namespaces (see
- * `.planning/config-overhaul/CONTRACTS.md` and `INVENTORY.md`). Full typed
- * field definitions, defaults catalog (non-exported engine/base), normalization,
- * and validation are implemented in Phase 1.
- */
+import { SECTION_IDS } from './constants.js';
+import { createDefaultCanonicalSettings, getCanonicalBaseDefaults } from './defaults.js';
+import { CURRENT_SCHEMA_VERSION, migrateSettingsPayload } from './migration.js';
+import { cloneSettingsValue, isPlainObject } from './patch.js';
 
-/**
- * @typedef {Record<string, unknown>} CanonicalSettings
- * A canonical settings tree keyed by sectionId. Only present keys are
- * meaningful for patches (omit = no change).
- */
+const SECTION_SET = new Set(SECTION_IDS);
 
-/**
- * Return an empty canonical settings skeleton (no base defaults exported).
- * Phase 1 will provide `createDefaultCanonicalSettings()` sourced from the
- * authoritative engine/base defaults (never serialized to files).
- *
- * @returns {CanonicalSettings}
- */
+/** @param {string} sectionId */
+export function isKnownSectionId(sectionId) {
+  return SECTION_SET.has(sectionId);
+}
+
 export function createEmptyCanonicalSettings() {
-  return {};
+  return /** @type {Record<string, any>} */ ({});
 }
 
+export function getBaseDefaults() {
+  return getCanonicalBaseDefaults();
+}
+
+export { createDefaultCanonicalSettings };
+
 /**
- * Phase 1 stub: normalize a candidate settings payload toward canonical shape.
  * @param {unknown} value
- * @returns {CanonicalSettings}
+ * @param {{ allowUnknownSections?: boolean }} [options]
+ * @returns {Record<string, any>}
  */
-export function normalizeSettings(value) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
-  return { /** @type {CanonicalSettings} */ ...(/** @type {any} */ (value)) };
+export function normalizeSettings(value, options = {}) {
+  if (!isPlainObject(value)) return {};
+  /** @type {Record<string, any>} */
+  const out = {};
+  for (const [key, val] of Object.entries(/** @type {Record<string, any>} */ (value))) {
+    if (!options.allowUnknownSections && !SECTION_SET.has(key)) continue;
+    out[key] = cloneSettingsValue(val);
+  }
+  return out;
 }
 
 /**
- * Phase 1 stub: validate canonical settings against schema/registry.
- * @param {unknown} _value
- * @returns {{ ok: boolean, errors: string[] }}
+ * @param {unknown} value
+ * @param {{ allowUnknownSections?: boolean }} [options]
+ * @returns {{ ok: boolean, errors: string[], warnings: string[] }}
  */
-export function validateSettings(_value) {
-  return { ok: true, errors: [] };
+export function validateSettings(value, options = {}) {
+  /** @type {string[]} */
+  const errors = [];
+  /** @type {string[]} */
+  const warnings = [];
+  if (value == null) return { ok: true, errors, warnings };
+  if (!isPlainObject(value)) {
+    return { ok: false, errors: ['Settings payload must be an object.'], warnings };
+  }
+  for (const [key, val] of Object.entries(/** @type {Record<string, any>} */ (value))) {
+    if (!SECTION_SET.has(key)) {
+      if (options.allowUnknownSections) warnings.push(`Unknown section: ${key}`);
+      else warnings.push(`Ignored unknown section: ${key}`);
+      continue;
+    }
+    if (val !== undefined && val !== null && !isPlainObject(val)) {
+      errors.push(`Section "${key}" must be an object.`);
+    }
+  }
+  return { ok: errors.length === 0, errors, warnings };
 }
+
+/**
+ * @param {any} payload
+ * @param {number} fromVersion
+ * @param {number} [toVersion]
+ */
+export function migrateSettings(payload, fromVersion, toVersion = CURRENT_SCHEMA_VERSION) {
+  return migrateSettingsPayload(payload, fromVersion, toVersion);
+}
+
+export { CURRENT_SCHEMA_VERSION };

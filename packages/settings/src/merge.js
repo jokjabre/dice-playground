@@ -1,75 +1,83 @@
-import { isResetMarker } from './constants.js';
+import { SECTION_IDS, isResetMarker } from './constants.js';
+import {
+  applyPatch,
+  applyPatchWithFallback,
+  buildEffectiveMinusBase,
+  buildOverridesOnly,
+  cloneSettingsValue,
+  deepEqualValue,
+  diffOverrides,
+  isPlainObject,
+  resolveLayers
+} from './patch.js';
 
-/**
- * @param {unknown} value
- * @returns {value is Record<string, unknown>}
- */
-function isPlainObject(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  const proto = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
-}
-
-/**
- * Phase 0 skeleton: deep merge settings patches with canonical semantics.
- *
- * Rules (contracted in Phase 0, fully enforced in Phase 1):
- * - Omit = no change to targeted scope (caller responsibility when applying).
- * - Explicit reset marker `{ "$reset": true }` clears an override at that path
- *   so value falls back to lower layers/base (returned here as a marker/result
- *   signal for higher-level layering logic).
- * - Plain objects: deep-merge by key/path by default.
- * - Arrays and complex structured definitions: default replace-at-node when
- *   provided, unless a section defines an explicit keyed-merge contract.
- *
- * This stub implements plain-object deep merge + reset propagation; array and
- * per-section keyed strategies are finalized/applied in Phase 1+.
- *
- * @param {Record<string, unknown>} base
- * @param {Record<string, unknown>} patch
- * @returns {Record<string, unknown>}
- */
+/** @param {Record<string, any>} base @param {Record<string, any>} patch @returns {Record<string, any>} */
 export function mergeSettingsPatch(base, patch) {
-  if (!isPlainObject(base)) base = {};
-  if (!isPlainObject(patch)) return { .../** @type {any} */ (base) };
-
-  /** @type {Record<string, unknown>} */
-  const result = { ...base };
-
-  for (const [key, value] of Object.entries(patch)) {
-    if (isResetMarker(value)) {
-      // Reset clears the override at this path. In a pure merge of two layers
-      // we remove the key; layering (base vs user default vs live) is handled
-      // by the apply/resolve pipeline in later phases.
-      delete result[key];
-      continue;
-    }
-
-    const current = result[key];
-    if (isPlainObject(current) && isPlainObject(value)) {
-      result[key] = mergeSettingsPatch(current, value);
-    } else if (Array.isArray(value)) {
-      // Default: replace-at-node for arrays (contract). Deep clone shallowly.
-      result[key] = value.slice();
-    } else if (isPlainObject(value)) {
-      result[key] = mergeSettingsPatch({}, value);
-    } else {
-      result[key] = value;
-    }
-  }
-
-  return result;
+  const result = applyPatch(isPlainObject(base) ? base : {}, isPlainObject(patch) ? patch : {});
+  return result === undefined ? {} : result;
 }
 
-/**
- * Phase 1 stub: extract a section-scoped subset from a settings payload.
- * @param {Record<string, unknown>} settings
- * @param {string} sectionId
- * @returns {Record<string, unknown>}
- */
+/** @param {Record<string, any>} settings @param {string|string[]} sectionId @returns {Record<string, any>} */
 export function extractSection(settings, sectionId) {
-  if (!settings || typeof settings !== 'object') return {};
-  const value = /** @type {Record<string, unknown>} */ (settings)[sectionId];
-  if (value === undefined) return {};
-  return { [sectionId]: value };
+  if (!isPlainObject(settings)) return {};
+  const ids = Array.isArray(sectionId) ? sectionId : [sectionId];
+  /** @type {Record<string, any>} */
+  const out = {};
+  for (const id of ids) {
+    if (!Object.prototype.hasOwnProperty.call(settings, id)) continue;
+    out[id] = cloneSettingsValue(/** @type {any} */ (settings)[id]);
+  }
+  return out;
 }
+
+/** @param {Record<string, any>} settings @param {{ sectionIds?: string[] }} [options] */
+export function extractApplicableSections(settings, options = {}) {
+  const allowed = new Set(options.sectionIds || SECTION_IDS);
+  if (!isPlainObject(settings)) return { extracted: /** @type {Record<string, any>} */ ({}), ignoredKeys: /** @type {string[]} */ ([]) };
+  /** @type {Record<string, any>} */
+  const extracted = {};
+  /** @type {string[]} */
+  const ignoredKeys = [];
+  for (const [key, value] of Object.entries(settings)) {
+    if (allowed.has(key)) extracted[key] = cloneSettingsValue(value);
+    else ignoredKeys.push(key);
+  }
+  return { extracted, ignoredKeys };
+}
+
+/** @param {Record<string, any>} dirtyPatch @param {string[]} path @param {any} value */
+export function setDirtyPath(dirtyPatch, path, value) {
+  if (!Array.isArray(path) || path.length === 0) return isPlainObject(value) ? cloneSettingsValue(value) : dirtyPatch;
+  const root = isPlainObject(dirtyPatch) ? cloneSettingsValue(dirtyPatch) : {};
+  /** @type {Record<string, any>} */
+  let cursor = root;
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i];
+    if (!isPlainObject(cursor[key])) cursor[key] = {};
+    cursor = cursor[key];
+  }
+  cursor[path[path.length - 1]] = cloneSettingsValue(value);
+  return root;
+}
+
+/** @param {any} obj @param {string[]} path */
+export function getPathValue(obj, path) {
+  let cur = obj;
+  for (const key of path || []) {
+    if (cur == null || typeof cur !== 'object') return undefined;
+    cur = cur[key];
+  }
+  return cur;
+}
+
+export {
+  applyPatch,
+  applyPatchWithFallback,
+  resolveLayers,
+  diffOverrides,
+  buildEffectiveMinusBase,
+  buildOverridesOnly,
+  deepEqualValue,
+  cloneSettingsValue,
+  isResetMarker
+};

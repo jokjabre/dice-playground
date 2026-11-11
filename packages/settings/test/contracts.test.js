@@ -38,7 +38,7 @@ describe('@dice/settings Phase 0 contract stubs', () => {
     const env = createEnvelope({ camera: { distance: 1 } }, { kind: 'full', appId: 'sandbox' });
     expect(env.format).toBe(SETTINGS_FORMAT);
     expect(env.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(validateEnvelopeStructure(env)).toEqual({ ok: true, errors: [] });
+    expect(validateEnvelopeStructure(env)).toEqual({ ok: true, errors: [], warnings: [] });
   });
 
   it('provides storage key and filename convention helpers', () => {
