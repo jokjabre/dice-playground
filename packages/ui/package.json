@@ -9,9 +9,14 @@
     "./styles/*": "./src/styles/*"
   },
   "dependencies": {
-    "@dice/core": "*"
+    "@dice/core": "*",
+    "@dice/settings": "*"
   },
   "scripts": {
     "test": "vitest run"
-  }
+  },
+  "files": [
+    "src",
+    "README.md"
+  ]
 }

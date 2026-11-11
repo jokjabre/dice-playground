@@ -9,3 +9,9 @@ export { ControlPanel } from './controls/ControlPanel.js';
 export { Toolbar } from './hud/Toolbar.js';
 export { Panel } from './hud/Panel.js';
 export { Status } from './hud/Status.js';
+
+export { downloadTextFile, downloadJsonFile, pickTextFile, pickJsonFile } from './settings/file.js';
+export { registerUiSection, registerUiSections, getUiSection, listUiSections, createUiRegistry, ensureBaseUiSections, normalizeFieldDef, normalizeSectionUiDef } from './settings/registry.js';
+export { renderField, getAtPath, setAtPath } from './settings/fields.js';
+export { SettingsSection } from './settings/SettingsSection.js';
+export { SettingsPanel } from './settings/SettingsPanel.js';

@@ -2,7 +2,10 @@
 .dice-control-panel,
 .dice-toolbar,
 .dice-panel,
-.dice-status {
+.dice-status,
+.dice-settings-panel,
+.dice-settings-section,
+.dice-settings-actions {
   font-family: var(--dice-ui-font);
   box-sizing: border-box;
 }
@@ -11,7 +14,9 @@
 .dice-control-panel :focus-visible,
 .dice-toolbar :focus-visible,
 .dice-panel :focus-visible,
-.dice-status:focus-visible {
+.dice-status:focus-visible,
+.dice-settings-panel :focus-visible,
+.dice-settings-section :focus-visible {
   outline: 2px solid var(--dice-ui-focus);
   outline-offset: 2px;
 }

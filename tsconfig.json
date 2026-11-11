@@ -9,10 +9,28 @@
     "noEmit": true,
     "strict": true,
     "skipLibCheck": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "types": ["node", "vite/client"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node",
+      "vite/client"
+    ],
     "paths": {
-      "@registry": ["./apps/registry.json"]
+      "@registry": [
+        "./apps/registry.json"
+      ],
+      "@dice/settings": [
+        "./packages/settings/src/index.js"
+      ],
+      "@dice/ui": [
+        "./packages/ui/src/index.js"
+      ],
+      "@dice/core": [
+        "./packages/core/src/index.js"
+      ]
     }
   },
   "include": [

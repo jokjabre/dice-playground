@@ -1,0 +1,68 @@
+.dice-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dice-settings-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dice-settings-section {
+  border: 1px solid var(--dice-ui-border, #334155);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.dice-settings-section-title,
+.dice-settings-group-title {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dice-settings-section-body,
+.dice-settings-group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+
+.dice-settings-group {
+  border: 1px dashed var(--dice-ui-border, #334155);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin: 0;
+}
+
+.dice-settings-field {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.dice-settings-help {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.dice-settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dice-settings-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.dice-settings-status {
+  min-height: 1.2em;
+  font-size: 12px;
+  opacity: 0.9;
+}

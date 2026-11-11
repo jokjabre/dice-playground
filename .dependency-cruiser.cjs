@@ -81,9 +81,9 @@ module.exports = {
     {
       name: 'ui-core-only',
       severity: 'error',
-      comment: '@dice/ui may depend only on @dice/core types and constants.',
+      comment: '@dice/ui may depend only on @dice/core and @dice/settings (canonical settings contracts/primitives).',
       from: { path: '^packages/ui/' },
-      to: { path: '^packages/(?!core/|ui/)[^/]+/' }
+      to: { path: '^packages/(?!core/|settings/|ui/)[^/]+/' }
     },
     {
       name: 'engine-imports-only-allowed',

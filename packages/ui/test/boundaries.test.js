@@ -38,7 +38,7 @@ describe('@dice/ui boundaries', () => {
       );
       for (const specifier of specifiers) {
         if (specifier.startsWith('@dice/')) {
-          expect(specifier, file).toBe('@dice/core');
+          expect(['@dice/core', '@dice/settings']).toContain(specifier);
         }
         expect(specifier, file).not.toMatch(/^(three|cannon-es)(\/|$)/);
         expect(specifier, file).not.toContain('legacy/');
@@ -60,7 +60,7 @@ describe('@dice/ui boundaries', () => {
     const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf8'));
     expect(manifest.exports['./styles/*']).toBe('./src/styles/*');
 
-    for (const file of ['base.css', 'controls.css', 'banner.css', 'theme.css']) {
+    for (const file of ['base.css', 'controls.css', 'banner.css', 'theme.css', 'settings.css']) {
       const css = readFileSync(join(sourceRoot, 'styles', file), 'utf8');
       expect(css.length, file).toBeGreaterThan(0);
     }
@@ -68,6 +68,8 @@ describe('@dice/ui boundaries', () => {
     expect(banner).toContain('.dice-banner');
     const controls = readFileSync(join(sourceRoot, 'styles', 'controls.css'), 'utf8');
     expect(controls).toContain('.dice-control-panel');
+    const settings = readFileSync(join(sourceRoot, 'styles', 'settings.css'), 'utf8');
+    expect(settings).toContain('.dice-settings-panel');
   });
 
   it('is import-safe in Node without a DOM', async () => {
