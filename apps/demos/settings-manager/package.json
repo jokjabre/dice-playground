@@ -1,0 +1,14 @@
+{
+  "name": "@dice/app-settings-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Settings manager: inspect, split, merge/streamline, resolve conflicts, export, and preview Dice Playground settings files.",
+  "dependencies": {
+    "@dice/content": "*",
+    "@dice/core": "*",
+    "@dice/engine": "*",
+    "@dice/settings": "*",
+    "@dice/ui": "*"
+  }
+}

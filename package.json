@@ -20,6 +20,7 @@
     "dev:physics-lab": "vite --config apps/demos/physics-lab/vite.config.js",
     "dev:predetermined-roll": "vite --config apps/demos/predetermined-roll/vite.config.js",
     "dev:dice-visual-lab": "vite --config apps/demos/dice-visual-lab/vite.config.js",
+    "dev:settings-manager": "vite --config apps/demos/settings-manager/vite.config.js",
     "dev:yamb": "vite --config apps/games/yamb/vite.config.js",
     "dev:landing": "vite --config apps/landing/vite.config.js",
     "build": "node tools/build-apps.mjs",

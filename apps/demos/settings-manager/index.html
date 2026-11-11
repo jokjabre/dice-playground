@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="Settings manager: split, merge, resolve conflicts, export, and preview Dice Playground settings files." />
+    <title>Settings Manager — Dice Playground</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="sm-header">
+        <h1>Settings Manager</h1>
+        <p class="sm-caption">
+          Load, inspect, split, merge/streamline settings files with manual conflict resolution, validate, export, and preview.
+        </p>
+      </header>
+      <main class="sm-main">
+        <section class="sm-workspace">
+          <div id="files-panel" class="sm-panel" aria-label="Loaded files"></div>
+          <div id="merge-panel" class="sm-panel" aria-label="Merge and conflicts"></div>
+          <div id="resolved-panel" class="sm-panel" aria-label="Resolved result"></div>
+        </section>
+        <aside class="sm-side">
+          <section id="preview-panel" class="sm-panel" aria-label="Scene preview"></section>
+          <section id="report-panel" class="sm-panel" aria-label="Validation and report"></section>
+          <p class="sm-home"><a href="../../../" data-testid="home-link">&larr; All apps</a></p>
+        </aside>
+      </main>
+      <p id="sm-error" class="sm-error" data-testid="fatal-error" hidden></p>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

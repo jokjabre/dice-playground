@@ -54,6 +54,15 @@
     "status": "live"
   },
   {
+    "id": "settings-manager",
+    "category": "demo",
+    "title": "Settings Manager",
+    "description": "Inspect, split, merge/streamline, resolve conflicts, export, and preview settings files.",
+    "path": "apps/demos/settings-manager",
+    "url": "apps/demos/settings-manager/",
+    "status": "live"
+  },
+  {
     "id": "yamb",
     "category": "game",
     "title": "Yamb",
