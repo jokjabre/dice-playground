@@ -1,7 +1,8 @@
 import { EVENTS } from '@dice/core';
 import { createDiceEngine } from '@dice/engine';
 import { PointerInput } from '@dice/input';
-import { ControlPanel, ResultBanner, createElement } from '@dice/ui';
+import { ControlPanel, ResultBanner, createElement, mountAppSettings } from '@dice/ui';
+import { getVisibleSectionIdsForApp } from '@dice/settings';
 
 import { classicTray } from '@dice/content';
 
@@ -32,6 +33,7 @@ export const LAB_CONTENT = classicTray;
  * @property {import('@dice/engine').DiceEngine} engine
  * @property {ResultBanner} banner
  * @property {ControlPanel} panel
+ * @property {any} [settings]
  * @property {() => void} resize
  * @property {(request?: Record<string, any>) => Promise<any>} throwDice
  * @property {() => void} destroy
@@ -281,6 +283,8 @@ export async function createLabApp(options) {
   });
 
   controlsHost.appendChild(panel.element);
+  const settingsHost = createElement('div', { className: 'app-settings-host', 'data-testid': 'settings-host' }, []);
+  controlsHost.appendChild(settingsHost);
 
   const pointerInput = new PointerInput({ container: stage });
   engine.use(pointerInput);
@@ -657,19 +661,62 @@ export async function createLabApp(options) {
     updateStats();
   });
 
+  /** @param {any} effective */
+  function applyCanonicalToApp(effective) {
+    const enc = effective?.enclosure || {};
+    if (enc.type) { try { engine.setEnclosure(String(enc.type)); panel.setValue('enclosure', String(enc.type)); } catch {} }
+    const pw = effective?.physicsWorld || {};
+    if (pw.gravity) {
+      settings.gravity = { x: Number(pw.gravity.x ?? 0), y: Number(pw.gravity.y ?? 0), z: Number(pw.gravity.z ?? -2940) };
+      try { engine.setGravity(settings.gravity.x, settings.gravity.y, settings.gravity.z); panel.setValue('gravity-x', settings.gravity.x); panel.setValue('gravity-y', settings.gravity.y); panel.setValue('gravity-z', settings.gravity.z); } catch {}
+    }
+    const ps = effective?.physicsSolver || {};
+    if (ps.iterations != null) { settings.solverIterations = Number(ps.iterations); try { panel.setValue('solver-iterations', settings.solverIterations); engine.world.physicsWorld.setSolverIterations(settings.solverIterations); } catch {} }
+    if (ps.fixedStep != null) { settings.fixedStep = Number(ps.fixedStep); try { panel.setValue('fixed-step', settings.fixedStep); engine.setLoopConfig({ fixedStep: settings.fixedStep }); } catch {} }
+    if (ps.settle) {
+      if (ps.settle.velocityThreshold != null) { settings.velocityThreshold = Number(ps.settle.velocityThreshold); try { panel.setValue('velocity-threshold', settings.velocityThreshold); engine.setSettleConfig({ velocityThreshold: settings.velocityThreshold }); } catch {} }
+      if (ps.settle.settleFrames != null) { settings.settleFrames = Number(ps.settle.settleFrames); try { panel.setValue('settle-frames', settings.settleFrames); engine.setSettleConfig({ settleFrames: settings.settleFrames }); } catch {} }
+    }
+    const pm = effective?.physicsMaterials || {};
+    if (pm.mass != null) { settings.mass = Number(pm.mass); try { panel.setValue('mass', settings.mass); } catch {} }
+    if (pm.linearDamping != null) { settings.linearDamping = Number(pm.linearDamping); try { panel.setValue('linear-damping', settings.linearDamping); } catch {} }
+    if (pm.angularDamping != null) { settings.angularDamping = Number(pm.angularDamping); try { panel.setValue('angular-damping', settings.angularDamping); } catch {} }
+    if (pm.contactPairs && pm.contactPairs[`${getLabSurface(activeSurface).materialA}:${getLabSurface(activeSurface).materialB}`]) {
+      const c = pm.contactPairs[`${getLabSurface(activeSurface).materialA}:${getLabSurface(activeSurface).materialB}`];
+      if (c.friction != null) settings.friction = Number(c.friction);
+      if (c.restitution != null) settings.restitution = Number(c.restitution);
+      try { applyContact(); panel.setValue('friction', settings.friction); panel.setValue('restitution', settings.restitution); } catch {}
+    }
+    applyBodySettings();
+    updateStats();
+  }
+
+  const settingsIntegration = mountAppSettings({
+    appId: 'physics-lab',
+    container: settingsHost,
+    engine,
+    visibleSectionIds: getVisibleSectionIdsForApp('physics-lab'),
+    title: 'Settings',
+    onApplied: (info) => { try { applyCanonicalToApp(info?.effective || settingsIntegration.getEffective()); } catch {} },
+    onRebuildRequired: async () => { try { await throwDice(); } catch {} }
+  });
+
   syncContactControls();
+  try { applyCanonicalToApp(settingsIntegration.getEffective()); } catch {}
   updateStats();
 
   return {
     engine,
     banner,
     panel,
+    settings: settingsIntegration,
     resize: () => {
       engine.resize();
       updateStats();
     },
     throwDice,
     destroy: () => {
+      try { settingsIntegration.destroy(); } catch {}
       banner.destroy();
       panel.destroy();
       engine.destroy();

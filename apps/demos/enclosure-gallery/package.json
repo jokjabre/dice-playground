@@ -9,6 +9,7 @@
     "@dice/core": "*",
     "@dice/engine": "*",
     "@dice/input": "*",
+    "@dice/settings": "*",
     "@dice/ui": "*"
   }
 }

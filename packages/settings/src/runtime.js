@@ -149,6 +149,29 @@ function applyCameraHot(engine, effective) {
   // fov is not exposed as live setter on current world/engine; structural/rebuild path may be needed.
 }
 
+/** @param {any} value */
+function toNumberColor(value) {
+  if (value == null || value === '') return undefined;
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (/^#?[0-9a-fA-F]{6}$/.test(s)) return parseInt(s.replace('#', ''), 16);
+    const n = Number(s);
+    if (Number.isFinite(n)) return n;
+  }
+  return undefined;
+}
+
+/** @param {any} text */
+function parseMaybeCsvArray(text) {
+  if (Array.isArray(text)) return text.slice();
+  if (typeof text !== 'string') return null;
+  const parts = text.split(',').map((p) => p.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const nums = parts.map((p) => Number(p));
+  return nums.every((n) => Number.isFinite(n)) ? nums : parts;
+}
+
 /** @param {any} engine @param {Record<string, any>} effective */
 function applyLightingHot(engine, effective) {
   const lighting = effective.lighting || {};
@@ -156,9 +179,23 @@ function applyLightingHot(engine, effective) {
   const world = getEngineWorld(engine);
   if (primary?.position) {
     const pos = primary.position;
+    /** @type {Record<string, any>} */
     const payload = { position: { x: pos.x ?? 0, y: pos.y ?? 0, z: pos.z ?? 0 } };
+    if (primary.intensity != null) payload.intensity = primary.intensity;
+    if (primary.castShadow != null) payload.castShadow = primary.castShadow;
+    const c = toNumberColor(primary.color);
+    if (c != null) payload.color = c;
     if (typeof engine?.setLight === 'function') engine.setLight(payload);
     else if (typeof world?.setLight === 'function') world.setLight(payload);
+  }
+  const renderer = world?.renderer ?? null;
+  if (renderer && typeof renderer.setLight === 'function') {
+    const lp = {};
+    if (primary?.intensity != null) lp.intensity = primary.intensity;
+    if (primary?.castShadow != null) lp.castShadow = primary.castShadow;
+    const sc = toNumberColor(lighting.spotlightColor);
+    if (sc != null) lp.color = sc;
+    if (Object.keys(lp).length) { try { renderer.setLight(lp); } catch (_) {} }
   }
 }
 
@@ -234,8 +271,10 @@ function applySceneHot(engine, effective) {
   const scene = effective.scene || {};
   if (!renderer) return;
   try {
-    if (scene.background != null && typeof renderer.setBackground === 'function') renderer.setBackground(scene.background);
-    if (scene.deskColor != null && typeof renderer.setDeskColor === 'function') renderer.setDeskColor(scene.deskColor);
+    const bg = toNumberColor(scene.background);
+    if (bg != null && typeof renderer.setBackground === 'function') renderer.setBackground(bg);
+    const desk = toNumberColor(scene.deskColor);
+    if (desk != null && typeof renderer.setDeskColor === 'function') renderer.setDeskColor(desk);
     if ((scene.spotlightIntensity != null || scene.castShadow != null) && typeof renderer.setLight === 'function') {
       renderer.setLight({
         intensity: scene.spotlightIntensity,
@@ -298,8 +337,18 @@ export function applyStructuralSettings(engine, prevEffective, nextEffective, se
     if (next.count != null) diceCfg.count = next.count;
     if (next.style != null) diceCfg.style = next.style;
     if (Object.keys(diceCfg).length && typeof engine?.setDiceConfig === 'function') {
-      // Count/definition/style updates are applied; geometry changes may require app-level respawn.
       try { engine.setDiceConfig(diceCfg); rebuilt = true; } catch (_) { /* ignore */ }
+    }
+  }
+
+  // Best-effort visual/mapping hot application on live dice.
+  if (set.has('diceVisuals')) {
+    const next = nextEffective.diceVisuals || {};
+    const world = getEngineWorld(engine);
+    const dice = typeof world?.getDice === 'function' ? world.getDice() : [];
+    const mapping = Array.isArray(next.faceMapping) ? next.faceMapping : parseMaybeCsvArray(next.faceMappingText);
+    if (Array.isArray(mapping) && dice.length) {
+      for (const die of dice) { try { die?.setFaceMapping?.(mapping); } catch (_) {} }
     }
   }
 

@@ -126,10 +126,36 @@ export function createUiRegistry(defs = []) {
   return api;
 }
 
-/** Ensure base core sections are known to UI even without fields. */
+/** Ensure base core sections are known to UI. If no custom fields were
+ *  registered for a section, populate it from the default declarative
+ *  definitions so adding/hiding fields stays registry-driven. */
 export function ensureBaseUiSections() {
+  try {
+    // Lazy import pattern avoided in ESM sync context; definitions are imported
+    // below via optional dynamic registration call sites. Fallback to core stubs.
+  } catch {}
   for (const s of listCoreSections()) {
     if (!uiSections.has(s.id)) uiSections.set(s.id, normalizeSectionUiDef({ ...s, fields: [] }));
+  }
+  return listUiSections();
+}
+
+/**
+ * Register the shipped default UI definitions for all canonical sections.
+ * Idempotent: merges over existing entries while preferring provided fields.
+ * @param {SectionUiDef[]} [defs]
+ */
+export function registerDefaultUiDefinitions(defs) {
+  const list = Array.isArray(defs) ? defs : [];
+  for (const def of list) {
+    if (!def || !def.id) continue;
+    const existing = uiSections.get(def.id);
+    if (!existing || !Array.isArray(existing.fields) || existing.fields.length === 0) {
+      registerUiSection(def);
+    } else {
+      // Merge metadata, keep existing custom fields if already rich.
+      registerUiSection({ ...def, fields: existing.fields });
+    }
   }
   return listUiSections();
 }

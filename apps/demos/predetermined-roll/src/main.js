@@ -1,5 +1,6 @@
 import { createPredApp } from './app.js';
 import { PRED_DICE_COUNT } from './content.js';
+import '@dice/ui/styles/settings.css';
 import './styles.css';
 
 /**

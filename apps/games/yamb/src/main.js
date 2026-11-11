@@ -1,4 +1,5 @@
 import { createYambApp } from './app.js';
+import '@dice/ui/styles/settings.css';
 import './styles.css';
 
 /**

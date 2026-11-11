@@ -1,6 +1,7 @@
 import { createSandboxApp } from './app.js';
 import { SANDBOX_DICE_COUNT, SANDBOX_ENCLOSURES } from './content.js';
 import { isSandboxMode } from './modes.js';
+import '@dice/ui/styles/settings.css';
 import './styles.css';
 
 /**

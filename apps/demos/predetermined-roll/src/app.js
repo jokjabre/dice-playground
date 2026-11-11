@@ -2,7 +2,8 @@ import { EVENTS } from '@dice/core';
 import { createDeterminismPlugin } from '@dice/determinism';
 import { createDiceEngine } from '@dice/engine';
 import { PointerInput } from '@dice/input';
-import { ControlPanel, ResultBanner, createElement } from '@dice/ui';
+import { ControlPanel, ResultBanner, createElement, mountAppSettings } from '@dice/ui';
+import { getVisibleSectionIdsForApp } from '@dice/settings';
 
 import { classicTray } from '@dice/content';
 
@@ -34,6 +35,7 @@ export const PRED_CONTENT = classicTray;
  * @property {import('@dice/engine').DiceEngine} engine
  * @property {ResultBanner} banner
  * @property {ControlPanel} panel
+ * @property {any} [settings]
  * @property {() => void} resize
  * @property {(request?: Record<string, any>) => Promise<any>} throwDice
  * @property {() => void} destroy
@@ -133,6 +135,8 @@ export async function createPredApp(options) {
   });
 
   controlsHost.appendChild(panel.element);
+  const settingsHost = createElement('div', { className: 'app-settings-host', 'data-testid': 'settings-host' }, []);
+  controlsHost.appendChild(settingsHost);
 
   // Per-die target inputs, rebuilt when the dice count changes.
   /** @type {HTMLInputElement[]} */
@@ -401,18 +405,48 @@ export async function createPredApp(options) {
     panel.setDisabled('roll', false);
   });
 
+  /** @param {any} effective */
+  function applyCanonicalToApp(effective) {
+    const det = effective?.determinism || {};
+    if (det.mode && isDeterminismMode(det.mode) && det.mode !== activeMode) {
+      activeMode = det.mode;
+      try { panel.setValue('mode', activeMode); engine.unuse('determinism'); engine.use(createDeterminismPlugin({ mode: activeMode })); } catch {}
+    }
+    if (typeof det.requestedValuesText === 'string' && det.requestedValuesText.trim()) {
+      // keep UI targets in sync best-effort
+      const parts = det.requestedValuesText.split(',').map((/** @type {string} */ s) => s.trim()).filter(Boolean);
+      if (parts.length) {
+        targetInputs = parts.slice(0, diceCount);
+        rebuildTargets();
+      }
+    }
+    updateExplanation();
+  }
+
+  const settingsIntegration = mountAppSettings({
+    appId: 'predetermined-roll',
+    container: settingsHost,
+    engine,
+    visibleSectionIds: getVisibleSectionIdsForApp('predetermined-roll'),
+    title: 'Settings',
+    onApplied: (info) => { try { applyCanonicalToApp(info?.effective || settingsIntegration.getEffective()); } catch {} }
+  });
+
   rebuildTargets();
+  try { applyCanonicalToApp(settingsIntegration.getEffective()); } catch {}
   updateExplanation();
 
   return {
     engine,
     banner,
     panel,
+    settings: settingsIntegration,
     resize: () => {
       engine.resize();
     },
     throwDice,
     destroy: () => {
+      try { settingsIntegration.destroy(); } catch {}
       banner.destroy();
       panel.destroy();
       engine.destroy();

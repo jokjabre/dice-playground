@@ -3,7 +3,8 @@ import { createDiceRegistry } from '@dice/dice';
 import { createDiceEngine } from '@dice/engine';
 import { computeDieRadius } from '@dice/enclosures';
 import { PointerInput } from '@dice/input';
-import { ControlPanel, ResultBanner, createElement } from '@dice/ui';
+import { ControlPanel, ResultBanner, createElement, mountAppSettings } from '@dice/ui';
+import { getVisibleSectionIdsForApp } from '@dice/settings';
 
 import { classicTray } from '@dice/content';
 
@@ -42,6 +43,7 @@ export const VISUAL_CONTENT = classicTray;
  * @property {import('@dice/engine').DiceEngine} engine
  * @property {ResultBanner} banner
  * @property {ControlPanel} panel
+ * @property {any} [settings]
  * @property {() => void} resize
  * @property {(request?: Record<string, any>) => Promise<any>} throwDice
  * @property {() => void} destroy
@@ -214,6 +216,13 @@ export async function createVisualApp(options) {
   });
 
   controlsHost.appendChild(panel.element);
+
+  // Shared, registry-driven settings UI (Phase 4). Visible per app composition;
+  // hidden sections still apply via defaults/imports through the controller.
+  const settingsHost = createElement('div', { className: 'app-settings-host', 'data-testid': 'settings-host' }, []);
+  controlsHost.appendChild(settingsHost);
+  /** @type {any} */
+  let settingsIntegration = null;
 
   const pointerInput = new PointerInput({
     container: stage,
@@ -468,18 +477,95 @@ export async function createVisualApp(options) {
     panel.setDisabled('roll', false);
   });
 
+  /** @param {string} text */
+  function parseCsvNumsOrStrings(text) {
+    if (typeof text !== 'string') return null;
+    const parts = text.split(',').map((p) => p.trim()).filter(Boolean);
+    if (!parts.length) return null;
+    const nums = parts.map((p) => Number(p));
+    return nums.every((n) => Number.isFinite(n)) ? nums : parts;
+  }
+
+  /** @param {any} effective */
+  function applyCanonicalToApp(effective) {
+    const dv = effective?.diceVisuals || {};
+    if (dv.count != null) {
+      // dice count is structural; engine.setDiceConfig handles count for future rolls.
+      try { engine.setDiceConfig({ count: Number(dv.count) }); } catch {}
+    }
+    if (dv.definition != null) {
+      try { engine.setDiceConfig({ definition: String(dv.definition) }); } catch {}
+    }
+    if (dv.style != null) {
+      try { engine.setDiceConfig({ style: dv.style }); } catch {}
+    }
+    const geom = dv.geometry || {};
+    if (geom.chamfer != null) {
+      const c = clampValue(Number(geom.chamfer), VISUAL_CHAMFER.min, VISUAL_CHAMFER.max, settings.chamfer);
+      settings.chamfer = c;
+      definition.chamfer = c;
+      try { panel.setValue('chamfer', c); } catch {}
+    }
+    if (geom.radiusScale != null) {
+      const s = clampValue(Number(geom.radiusScale), VISUAL_RADIUS_SCALE.min, VISUAL_RADIUS_SCALE.max, settings.radiusScale);
+      settings.radiusScale = s;
+      try { panel.setValue('radius-scale', s); } catch {}
+    }
+    if (dv.colors) {
+      if (dv.colors.body) { settings.bodyColor = String(dv.colors.body); try { panel.setValue('body-color', settings.bodyColor); } catch {} }
+      if (dv.colors.label) { settings.labelColor = String(dv.colors.label); try { panel.setValue('label-color', settings.labelColor); } catch {} }
+    }
+    if (dv.material) {
+      if (dv.material.shininess != null) { settings.shininess = Number(dv.material.shininess); try { panel.setValue('shininess', settings.shininess); } catch {} }
+      if (dv.material.specular != null) {
+        const spec = typeof dv.material.specular === 'number' ? dv.material.specular : parseSpecularColor(String(dv.material.specular));
+        settings.specular = spec;
+        try { panel.setValue('specular', formatSpecularColor(spec)); } catch {}
+      }
+    }
+    if (typeof dv.faceMappingText === 'string') {
+      const m = parseCsvNumsOrStrings(dv.faceMappingText);
+      if (m) { lastMapping = /** @type {number[]} */ (m.map((v) => Number(v))); applyMappingToLiveDice(); }
+    } else if (Array.isArray(dv.faceMapping)) {
+      lastMapping = dv.faceMapping.map((/** @type {any} */ v) => Number(v));
+      applyMappingToLiveDice();
+    }
+    applyStyle();
+    applyRadiusScale();
+    updatePreview();
+  }
+
+  settingsIntegration = mountAppSettings({
+    appId: 'dice-visual-lab',
+    container: settingsHost,
+    engine,
+    visibleSectionIds: getVisibleSectionIdsForApp('dice-visual-lab'),
+    title: 'Settings',
+    onApplied: (info) => {
+      try { applyCanonicalToApp(info?.effective || settingsIntegration?.getEffective()); } catch {}
+    },
+    onRebuildRequired: async () => {
+      // Structural changes: reapply style/radius/geometry and reroll for safe reset.
+      try { applyRadiusScale(); updatePreview(); } catch {}
+      try { await throwDice(); } catch {}
+    }
+  });
+  try { applyCanonicalToApp(settingsIntegration.getEffective()); } catch {}
+
   updatePreview();
 
   return {
     engine,
     banner,
     panel,
+    settings: settingsIntegration,
     resize: () => {
       applyRadiusScale();
       updatePreview();
     },
     throwDice,
     destroy: () => {
+      try { settingsIntegration?.destroy?.(); } catch {}
       banner.destroy();
       panel.destroy();
       engine.destroy();

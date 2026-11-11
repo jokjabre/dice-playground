@@ -10,6 +10,7 @@
     "@dice/determinism": "*",
     "@dice/engine": "*",
     "@dice/input": "*",
+    "@dice/settings": "*",
     "@dice/ui": "*"
   }
 }

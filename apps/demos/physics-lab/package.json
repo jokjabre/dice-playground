@@ -10,6 +10,7 @@
     "@dice/engine": "*",
     "@dice/input": "*",
     "@dice/physics": "*",
+    "@dice/settings": "*",
     "@dice/ui": "*"
   }
 }

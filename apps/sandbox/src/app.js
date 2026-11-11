@@ -7,8 +7,10 @@ import {
   Panel,
   ResultBanner,
   Status,
-  createElement
+  createElement,
+  mountAppSettings
 } from '@dice/ui';
+import { getVisibleSectionIdsForApp } from '@dice/settings';
 
 import {
   SANDBOX_CAMERA,
@@ -46,6 +48,7 @@ import {
  * @property {ResultBanner} banner
  * @property {Panel} enginePanel
  * @property {Status} motionStatus
+ * @property {any} [settings]
  * @property {() => void} resize
  * @property {(request?: Record<string, any>) => Promise<any>} throwDice
  * @property {() => void} destroy
@@ -193,6 +196,7 @@ export async function createSandboxApp(options) {
   const cameraGroup = createGroup('Camera', { collapsed: true });
   const lightGroup = createGroup('Light', { collapsed: true });
   const detailsGroup = createGroup('Details', { collapsed: true });
+  const settingsGroup = createGroup('Settings', { collapsed: true });
 
   // -- Action row: reset / throw / clear, always visible, icon only. -----
   const resetButton = /** @type {HTMLButtonElement} */ (
@@ -483,6 +487,9 @@ export async function createSandboxApp(options) {
     []
   );
   detailsGroup.append(infoPanelHost);
+
+  const settingsHost = createElement('div', { className: 'app-settings-host', 'data-testid': 'settings-host' }, []);
+  settingsGroup.append(settingsHost);
 
   const pointerInput = new PointerInput({ container: stage });
   engine.use(pointerInput);
@@ -915,6 +922,54 @@ export async function createSandboxApp(options) {
     engine.setEnclosure(initialEnclosure);
   }
 
+  /** @param {any} effective */
+  function applyCanonicalToApp(effective) {
+    const enc = effective?.enclosure || {};
+    if (enc.type && enc.type !== activeEnclosure) {
+      activeEnclosure = String(enc.type);
+      try { enclosurePanel.setValue('enclosure', activeEnclosure); engine.setEnclosure(activeEnclosure); } catch {}
+    }
+    if (enc.scale != null && Number(enc.scale) !== activeScale) {
+      activeScale = Number(enc.scale);
+      try { enclosurePanel.setValue('enclosure-scale', String(activeScale)); engine.setEnclosureScale(activeScale); } catch {}
+    }
+    const cam = effective?.camera || {};
+    if (cam.distance != null) {
+      const d = Number(cam.distance);
+      cameraSettings.distance = d;
+      try { cameraPanel.setValue('camera-distance', d); engine.setCamera({ distance: d }); } catch {}
+    }
+    const lp = effective?.lighting?.primary?.position;
+    if (lp) {
+      if (lp.x != null) { lightPosition.x = Number(lp.x); try { lightPanel.setValue('light-x', lightPosition.x); } catch {} }
+      if (lp.y != null) { lightPosition.y = Number(lp.y); try { lightPanel.setValue('light-y', lightPosition.y); } catch {} }
+      if (lp.z != null) { lightPosition.z = Number(lp.z); try { lightPanel.setValue('light-z', lightPosition.z); } catch {} }
+      try { engine.setLight({ position: lightPosition }); engine.world.render(0); } catch {}
+    }
+    const ts = effective?.throwSpawn?.throw || {};
+    if (ts.flickInterrupt != null) {
+      pointerInput.interruptRolls = Boolean(ts.flickInterrupt);
+      try { engineControls.setValue('flick-interrupt', pointerInput.interruptRolls); } catch {}
+    }
+    if (ts.maxRollDurationMs != null) {
+      const ms = Number(ts.maxRollDurationMs);
+      if (Number.isFinite(ms) && ms > 0) {
+        try { engine.setLoopConfig({ maxFrames: secondsToFrames(ms / 1000) }); engineControls.setValue('max-roll-duration', ms / 1000); } catch {}
+      }
+    }
+    updateInfo();
+  }
+
+  const settingsIntegration = mountAppSettings({
+    appId: 'sandbox',
+    container: settingsHost,
+    engine,
+    visibleSectionIds: getVisibleSectionIdsForApp('sandbox'),
+    title: 'Settings',
+    onApplied: (info) => { try { applyCanonicalToApp(info?.effective || settingsIntegration.getEffective()); } catch {} },
+    onRebuildRequired: async () => { /* structural handled by engine/controller where possible */ }
+  });
+
   if (initialMode !== 'standard') {
     // Enter the requested mode before the first roll. `applyMode` guards
     // against re-entry, so seed the tracked mode first.
@@ -922,6 +977,7 @@ export async function createSandboxApp(options) {
     applyMode(initialMode);
   }
 
+  try { applyCanonicalToApp(settingsIntegration.getEffective()); } catch {}
   updateInfo();
 
   return {
@@ -929,12 +985,14 @@ export async function createSandboxApp(options) {
     banner,
     enginePanel,
     motionStatus,
+    settings: settingsIntegration,
     resize: () => {
       engine.resize();
       updateInfo();
     },
     throwDice,
     destroy: () => {
+      try { settingsIntegration.destroy(); } catch {}
       motionInput.disable();
       banner.destroy();
       enginePanel.destroy();

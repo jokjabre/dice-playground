@@ -1,5 +1,6 @@
 import { createVisualApp } from './app.js';
 import { VISUAL_DICE_COUNT } from './content.js';
+import '@dice/ui/styles/settings.css';
 import './styles.css';
 
 /**

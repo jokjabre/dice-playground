@@ -1,5 +1,6 @@
 import { createGalleryApp, GALLERY_DICE_COUNT } from './app.js';
 import { GALLERY_ENCLOSURES } from './content.js';
+import '@dice/ui/styles/settings.css';
 import './styles.css';
 
 /**

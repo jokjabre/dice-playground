@@ -1,5 +1,6 @@
 import { createLabApp } from './app.js';
 import { LAB_DICE_COUNT } from './content.js';
+import '@dice/ui/styles/settings.css';
 import './styles.css';
 
 /**

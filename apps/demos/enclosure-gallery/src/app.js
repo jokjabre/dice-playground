@@ -1,7 +1,8 @@
 import { EVENTS } from '@dice/core';
 import { createDiceEngine } from '@dice/engine';
 import { PointerInput } from '@dice/input';
-import { ControlPanel, ResultBanner, createElement } from '@dice/ui';
+import { ControlPanel, ResultBanner, createElement, mountAppSettings } from '@dice/ui';
+import { getVisibleSectionIdsForApp } from '@dice/settings';
 
 import {
   GALLERY_CAMERA,
@@ -32,6 +33,7 @@ export const GALLERY_DICE_COUNT = 6;
  * @property {import('@dice/engine').DiceEngine} engine
  * @property {ResultBanner} banner
  * @property {ControlPanel} panel
+ * @property {any} [settings]
  * @property {() => void} resize
  * @property {(request?: Record<string, any>) => Promise<any>} throwDice
  * @property {() => void} destroy
@@ -211,6 +213,8 @@ export async function createGalleryApp(options) {
   });
 
   controlsHost.appendChild(panel.element);
+  const settingsHost = createElement('div', { className: 'app-settings-host', 'data-testid': 'settings-host' }, []);
+  controlsHost.appendChild(settingsHost);
 
   const pointerInput = new PointerInput({ container: stage });
   engine.use(pointerInput);
@@ -421,22 +425,64 @@ export async function createGalleryApp(options) {
     updateInfo();
   });
 
+  /** @param {any} effective */
+  function applyCanonicalToApp(effective) {
+    const enc = effective?.enclosure || {};
+    if (enc.type && enc.type !== activeEnclosure) {
+      activeEnclosure = String(enc.type);
+      try { panel.setValue('enclosure', activeEnclosure); } catch {}
+      try { engine.setEnclosure(activeEnclosure); } catch {}
+    }
+    if (enc.scale != null && Number(enc.scale) !== activeScale) {
+      activeScale = Number(enc.scale);
+      try { panel.setValue('enclosure-scale', String(activeScale)); } catch {}
+      try { engine.setEnclosureScale(activeScale); } catch {}
+    }
+    const cam = effective?.camera || {};
+    if (cam.distance != null) {
+      try { panel.setValue('camera-distance', Number(cam.distance)); } catch {}
+      try { engine.setCamera({ distance: Number(cam.distance) }); } catch {}
+    }
+    const light = effective?.lighting?.primary?.position || {};
+    if (light.x != null) { lightPosition.x = Number(light.x); try { panel.setValue('light-x', lightPosition.x); } catch {} }
+    if (light.y != null) { lightPosition.y = Number(light.y); try { panel.setValue('light-y', lightPosition.y); } catch {} }
+    if (light.z != null) { lightPosition.z = Number(light.z); try { panel.setValue('light-z', lightPosition.z); } catch {} }
+    try { engine.setLight({ position: lightPosition }); engine.world.render(0); } catch {}
+    const g = effective?.physicsWorld?.gravity;
+    if (g) {
+      try { engine.setGravity(Number(g.x ?? 0), Number(g.y ?? 0), Number(g.z ?? -2940)); panel.setValue('gravity-z', Number(g.z ?? -2940)); } catch {}
+    }
+    updateInfo();
+  }
+
+  const settingsIntegration = mountAppSettings({
+    appId: 'enclosure-gallery',
+    container: settingsHost,
+    engine,
+    visibleSectionIds: getVisibleSectionIdsForApp('enclosure-gallery'),
+    title: 'Settings',
+    onApplied: (info) => { try { applyCanonicalToApp(info?.effective || settingsIntegration.getEffective()); } catch {} },
+    onRebuildRequired: async () => { try { await throwDice(); } catch {} }
+  });
+
   if (initialEnclosure !== 'box') {
     engine.setEnclosure(initialEnclosure);
   }
-
+  try { applyCanonicalToApp(settingsIntegration.getEffective()); } catch {}
   updateInfo();
 
   return {
     engine,
     banner,
     panel,
+    settings: settingsIntegration,
     resize: () => {
       engine.resize();
       updateInfo();
     },
     throwDice,
     destroy: () => {
+      try { settingsIntegration.destroy(); } catch {}
       banner.destroy();
       panel.destroy();
       engine.destroy();

@@ -1,6 +1,7 @@
 import { EVENTS } from '@dice/core';
 import { createDiceEngine } from '@dice/engine';
-import { ResultBanner, createElement } from '@dice/ui';
+import { ResultBanner, createElement, mountAppSettings } from '@dice/ui';
+import { getVisibleSectionIdsForApp } from '@dice/settings';
 
 import { classicTray } from '@dice/content';
 
@@ -44,6 +45,7 @@ export const YAMB_CONTENT = classicTray;
  * @typedef {Object} YambAppHandle
  * @property {import('@dice/engine').DiceEngine} engine
  * @property {import('@dice/ui').ResultBanner} banner
+ * @property {any} [settings]
  * @property {() => void} resize
  * @property {() => import('./game/gameState.js').GameState} getState
  * @property {(action: Record<string, any>) => void} dispatch
@@ -265,18 +267,18 @@ export async function createYambApp(options) {
     dispatch({ type: 'NEW_GAME' });
   });
 
-  controlsHost.replaceChildren(
-    createElement(
-      'div',
-      {
-        className: 'yamb-controls-row',
-        role: 'toolbar',
-        'aria-label': 'Game controls',
-        'data-testid': 'game-controls'
-      },
-      [rollButton, scoreButton, clearKeepButton, newGameButton]
-    )
+  const controlsRow = createElement(
+    'div',
+    {
+      className: 'yamb-controls-row',
+      role: 'toolbar',
+      'aria-label': 'Game controls',
+      'data-testid': 'game-controls'
+    },
+    [rollButton, scoreButton, clearKeepButton, newGameButton]
   );
+  const settingsHost = createElement('div', { className: 'app-settings-host', 'data-testid': 'settings-host' }, []);
+  controlsHost.replaceChildren(controlsRow, settingsHost);
 
   // -- Setup panel (rebuilt when returning to setup) ----------------------
 
@@ -466,11 +468,21 @@ export async function createYambApp(options) {
     }
   });
 
+  const settingsIntegration = mountAppSettings({
+    appId: 'yamb',
+    container: settingsHost,
+    engine,
+    visibleSectionIds: getVisibleSectionIdsForApp('yamb'),
+    title: 'Settings',
+    onRebuildRequired: async () => { /* structural changes may require clean reset; state preservation best-effort */ }
+  });
+
   render();
 
   return {
     engine,
     banner,
+    settings: settingsIntegration,
     resize: () => {
       engine.resize();
     },
@@ -479,6 +491,7 @@ export async function createYambApp(options) {
       dispatch(action);
     },
     destroy: () => {
+      try { settingsIntegration.destroy(); } catch {}
       banner.destroy();
       engine.destroy();
     }

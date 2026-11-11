@@ -11,6 +11,7 @@
     "@dice/engine": "*",
     "@dice/enclosures": "*",
     "@dice/input": "*",
+    "@dice/settings": "*",
     "@dice/ui": "*"
   }
 }
