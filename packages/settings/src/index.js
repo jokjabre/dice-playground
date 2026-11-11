@@ -78,3 +78,11 @@ export {
   canonicalToContentPack,
   runtimeStateToCanonical
 } from './adapters.js';
+
+export {
+  createApplyController,
+  classifySettingsPatch,
+  resolveCanonicalLayers,
+  applyHotSettings,
+  applyStructuralSettings
+} from './runtime.js';
